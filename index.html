@@ -915,7 +915,7 @@ const ASSET_TYPE_COLORS={'หุ้นไทย':'#378ADD','หุ้นต่�
 const BROKERS_DEFAULT=[];
 function getBrokers(){
   const custom=JSON.parse(localStorage.getItem('cp_brokers')||'[]');
-  return [...BROKERS_DEFAULT,...custom,'อื่นๆ (เพิ่มใหม่)'];
+  return [...custom,...(custom.length?['🗑 ล้างรายการทั้งหมด']:[]),'อื่นๆ (เพิ่มใหม่)'];
 }
 function addCustomBroker(name){
   if(!name.trim())return;
@@ -1051,7 +1051,7 @@ function renderAssetTx(){
   if(!selAsset){sec.innerHTML='';return;}
   const a=assetList.find(x=>x.id===selAsset);
   if(!a){sec.innerHTML='';return;}
-  const orders=assetOrderFilter==='all'?a.assetOrders:a.assetOrders.filter(o=>getOrderStatus(o)===assetOrderFilter);
+  const orders=assetOrderFilter==='all'?a.assetOrders:a.assetOrders.filter(o=>getOrderStatus(o,a)===assetOrderFilter);
   const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o,a),0);
   const holdQty=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a),0);
   const costBasis=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a)*o.price,0);
@@ -1094,10 +1094,9 @@ function renderAssetTx(){
     return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;${status==='closed'?'opacity:.65':''}">
       <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)">
         <div style="flex:1">
-          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;display:flex;align-items:center;gap:6px">
-            <i class="ti ti-receipt" aria-hidden="true" style="font-size:14px;color:var(--muted)"></i>Order #${o.orderNo}
-          </div>
-          <div style="font-size:11px;color:var(--muted)">${fmtDate(o.date)} · ${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:2px">${fmtDate(o.date)} · <span style="font-weight:600;color:var(--text)">Order #${o.orderNo}</span></div>
+          ${o.sells.map(sv=>`<div style="font-size:12px;color:var(--muted);margin-bottom:2px">${fmtDate(sv.date)} · <span style="font-weight:600;color:var(--coral)">Order #${sv.orderNo||'—'}</span> <span style="font-size:11px;color:var(--hint)">↗ ขาย</span></div>`).join('')}
+          <div style="font-size:11px;color:var(--muted)">${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
         </div>
         <div class="ord-badge ${pillCls}">${pillTxt}</div>
       </div>
@@ -1113,6 +1112,7 @@ function renderAssetTx(){
           <div style="background:var(--coral-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--coral);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↗ ขายออก</div>
             <div style="font-size:13px;font-weight:500;color:var(--coral)">${gold?soldQty.toFixed(4):soldQty} ${unitLabel} (${soldPct}%)</div>
+            ${gold&&o.sells.length?`<div style="font-size:11px;color:var(--coral);margin-top:1px">฿${fmt(o.sells[o.sells.length-1].goldPrice)}/บาท</div>`:''}
             <div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">Realized: ${opl>=0?'+':''}฿${fmt(Math.abs(opl))}</div>
           </div>`:''}
           ${rem>0?`${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>`:''}
@@ -1129,14 +1129,6 @@ function renderAssetTx(){
             <div style="height:100%;width:${remainPct}%;background:var(--border-md);border-radius:0 3px 3px 0"></div>
           </div>
         </div>`:''}
-        ${o.sells.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-          <div style="font-size:11px;font-weight:500;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">รายการขาย</div>
-          ${sellItems}
-        </div>`:`<div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:4px">ยังไม่มีการขาย</div>`}
-        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;margin-top:8px;border-top:1px solid var(--border)">
-          <div style="font-size:12px;color:var(--muted)">กำไร/ขาดทุนรวม</div>
-          <div style="font-size:13px;font-weight:500;color:${totalPL>=0?'var(--teal)':'var(--coral)'}">${totalPL>=0?'+':''}฿${fmt(Math.abs(totalPL))}</div>
-        </div>
       </div>
       ${status!=='closed'?`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
         <button class="btn btn-sm" onclick="openAssetOrderModal('${a.id}','sell','${o.id}')">↗ บันทึกขาย Order นี้</button>
@@ -1307,6 +1299,19 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
 
 function onBrokerChange(sel){
   const grp=document.getElementById('ao-broker-custom-grp');
+  if(sel.value==='🗑 ล้างรายการทั้งหมด'){
+    if(confirm('ล้างรายการโบรกเกอร์ที่บันทึกไว้ทั้งหมด?')){
+      localStorage.removeItem('cp_brokers');
+      const brokerOpts=getBrokers().map(b=>`<option>${b}</option>`).join('');
+      sel.innerHTML=brokerOpts;
+      sel.value='อื่นๆ (เพิ่มใหม่)';
+      if(grp)grp.style.display='block';
+    } else {
+      sel.value=getBrokers()[0]||'อื่นๆ (เพิ่มใหม่)';
+      if(grp)grp.style.display='none';
+    }
+    return;
+  }
   if(grp)grp.style.display=sel.value==='อื่นๆ (เพิ่มใหม่)'?'block':'none';
 }
 
