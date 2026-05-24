@@ -1291,9 +1291,8 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
     <div id="ao-sell-fields">${type==='sell'?sellFields:''}</div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">ค่าธรรมเนียม${gold&&type==='buy'?' / กำเหน็จ':''} (฿)</label><input class="form-input" type="number" step="0.01" id="ao-fee" value="0" oninput="${gold?'calcGoldBuy();calcGoldSell()':''}"/></div>
-      ${type==='buy'?`<div class="form-group"><label class="form-label">โบรกเกอร์</label><select class="form-input" id="ao-broker" onchange="onBrokerChange(this)">${brokerOpts}</select></div>`:'<div class="form-group"></div>'}
+      ${type==='buy'?`<div class="form-group"><label class="form-label" style="display:flex;justify-content:space-between">โบรกเกอร์${JSON.parse(localStorage.getItem('cp_brokers')||'[]').length?` <span style="font-size:11px;color:var(--coral);cursor:pointer;font-weight:400" onclick="clearBrokers()">🗑 ล้างรายการ</span>`:''}</label><input class="form-input" id="ao-broker" list="broker-datalist" placeholder="พิมพ์ชื่อโบรกเกอร์..." autocomplete="off"/><datalist id="broker-datalist">${JSON.parse(localStorage.getItem('cp_brokers')||'[]').map(b=>`<option value="${b}"></option>`).join('')}</datalist></div>`:'<div class="form-group"></div>'}
     </div>
-    ${type==='buy'?`<div class="form-group" id="ao-broker-custom-grp" style="display:none"><label class="form-label">ชื่อโบรกเกอร์ใหม่</label><input class="form-input" id="ao-broker-custom" placeholder="พิมพ์ชื่อโบรกเกอร์..."/></div>`:''}
     <div class="form-group"><label class="form-label">หมายเหตุ</label><input class="form-input" id="ao-note" placeholder="เช่น DCA, ทำกำไร..."/></div>
     <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveAssetOrder()">บันทึก</button></div>
   </div></div>`;
@@ -1302,32 +1301,15 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
   window._goldBuyFields=buyFields;
   window._goldSellFields=sellFields;
   if(sellOrderId)setTimeout(()=>onSelOrder(),50);
-  // Auto-show broker custom input if no brokers saved yet
-  if(type==='buy'){
-    const brokerSel=document.getElementById('ao-broker');
-    if(brokerSel?.value==='อื่นๆ (เพิ่มใหม่)'){
-      const grp=document.getElementById('ao-broker-custom-grp');
-      if(grp)grp.style.display='block';
-    }
-  }
 }
 
-function onBrokerChange(sel){
-  const grp=document.getElementById('ao-broker-custom-grp');
-  if(sel.value==='🗑 ล้างรายการทั้งหมด'){
-    if(confirm('ล้างรายการโบรกเกอร์ที่บันทึกไว้ทั้งหมด?')){
-      localStorage.removeItem('cp_brokers');
-      const brokerOpts=getBrokers().map(b=>`<option>${b}</option>`).join('');
-      sel.innerHTML=brokerOpts;
-      sel.value='อื่นๆ (เพิ่มใหม่)';
-      if(grp)grp.style.display='block';
-    } else {
-      sel.value=getBrokers()[0]||'อื่นๆ (เพิ่มใหม่)';
-      if(grp)grp.style.display='none';
-    }
-    return;
+function clearBrokers(){
+  if(confirm('ล้างรายการโบรกเกอร์ทั้งหมด?')){
+    localStorage.removeItem('cp_brokers');
+    const dl=document.getElementById('broker-datalist');
+    if(dl)dl.innerHTML='';
+    document.querySelectorAll('[onclick="clearBrokers()"]').forEach(el=>el.remove());
   }
-  if(grp)grp.style.display=sel.value==='อื่นๆ (เพิ่มใหม่)'?'block':'none';
 }
 
 function onSelOrder(){
@@ -1406,12 +1388,8 @@ async function saveAssetOrder(){
   const fee=parseFloat(document.getElementById('ao-fee').value)||0;
   const date=document.getElementById('ao-date').value;
   const brokerEl=document.getElementById('ao-broker');
-  let broker=brokerEl?brokerEl.value:'';
-  if(broker==='อื่นๆ (เพิ่มใหม่)'){
-    const custom=(document.getElementById('ao-broker-custom')?.value||'').trim();
-    if(custom){addCustomBroker(custom);broker=custom;}
-    else broker='อื่นๆ';
-  }
+  let broker=(brokerEl?brokerEl.value:'').trim();
+  if(broker)addCustomBroker(broker);
   const note=(document.getElementById('ao-note').value||'').trim();
   if(!orderNo){alert('กรุณาระบุ Order No. ค่ะ');return;}
   const a=assetList.find(x=>x.id===curOrderAssetId);
