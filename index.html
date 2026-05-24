@@ -1079,7 +1079,7 @@ function renderAssetTx(){
     const opl=getOrderRealizedPL(o,a);
     const totalGrams=goldBuyGrams(o);
     const remC=totalGrams>0?(o.amountPaid+(o.fee||0))*(rem/totalGrams):0;
-    const unrealO=gold?(a.price>0?a.price*rem/GOLD_GRAM-remC:0):(a.price-o.price)*rem;
+    const unrealO=gold?(status==='closed'||rem<0.0001?0:(a.price>0?a.price*rem/GOLD_GRAM-remC:0)):(status==='closed'?0:(a.price-o.price)*rem);
     const totalPL=opl+unrealO;
     const totalCost=gold?(o.amountPaid+(o.fee||0)):o.qty*o.price+(o.fee||0);
     const pillCls=status==='open'?'ord-open':status==='partial'?'ord-partial':'ord-closed';
