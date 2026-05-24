@@ -1162,7 +1162,7 @@ function renderAssetTx(){
     ${a.price>0&&isGold(a.type)?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">💰 ราคาปัจจุบัน: <span style="font-weight:600;color:var(--text)">฿${fmt(a.price)}/บาท</span>${a.priceUpdatedAt?` · อัปเดต ${fmtDate(a.priceUpdatedAt)}`:''}  </div>`:''}
     <div class="tx-summary" style="margin-bottom:10px">
       <div class="tx-sum"><div class="tx-sum-label">กำไร/ขาดทุนจากการขาย</div><div class="tx-sum-val ${realized>=0?'income-c':'expense-c'}">${realized>=0?'+':''}฿${fmt(Math.abs(realized))}</div></div>
-      <div class="tx-sum"><div class="tx-sum-label">กำไร/ขาดทุนจากราคาปัจจุบัน</div><div class="tx-sum-val ${unrealized>=0?'income-c':'expense-c'}">${unrealized>=0?'+':''}฿${fmt(Math.abs(unrealized))}</div></div>
+      <div class="tx-sum"><div class="tx-sum-label">กำไร/ขาดทุนจากราคาปัจจุบัน(ในพอร์ต)</div><div class="tx-sum-val ${unrealized>=0?'income-c':'expense-c'}">${unrealized>=0?'+':''}฿${fmt(Math.abs(unrealized))}</div></div>
       <div class="tx-sum"><div class="tx-sum-label">จำนวน Order</div><div class="tx-sum-val">${a.assetOrders.length} รายการ</div></div>
     </div>
     <div class="asset-filter-row">
