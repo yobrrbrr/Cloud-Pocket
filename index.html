@@ -929,11 +929,11 @@ function getOrderRemaining(o,a){
 }
 function getOrderRealizedPL(o,a){
   if(a&&isGold(a.type)){
-    const bg=goldBuyGrams(o);
-    const cpp=bg>0?(o.amountPaid+(o.fee||0))/bg:0;
+    // Gold Now formula: (sellPrice - buyPrice) / GOLD_GRAM × grams - fees
+    const buyFee=o.fee||0;
     return o.sells.reduce((s,sv)=>{
-      const rev=(sv.goldPrice/GOLD_GRAM)*(sv.sellWeight||0);
-      return s+rev-cpp*(sv.sellWeight||0)-sv.fee;
+      const pl=(sv.goldPrice-o.goldPrice)/GOLD_GRAM*(sv.sellWeight||0);
+      return s+pl-buyFee*(sv.sellWeight||0)/goldBuyGrams(o)-sv.fee;
     },0);
   }
   return o.sells.reduce((s,sv)=>s+(sv.price-o.price)*sv.qty-sv.fee,0);
@@ -1244,9 +1244,9 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
       <div class="form-group"><label class="form-label">น้ำหนักที่ขาย (กรัม)</label><input class="form-input" type="number" step="0.001" id="ao-sw" placeholder="0.500" oninput="calcGoldSell()"/></div>
     </div>
     <div id="gold-sell-calc" style="display:none" class="calc-bx calc-bx-n">
-      <div class="calc-r"><span>รายรับจากการขาย</span><span class="cv" id="gsc-inc">—</span></div>
-      <div class="calc-r"><span>ต้นทุน (ราคาซื้อ × น้ำหนัก)</span><span class="cv" id="gsc-cost">—</span></div>
-      <div class="calc-r hl"><span>กำไร/ขาดทุน</span><span class="cv" id="gsc-pl">—</span></div>
+      <div class="calc-r"><span>กำไร/ขาดทุน (ก่อนหักค่าธรรมเนียม)</span><span class="cv" id="gsc-inc">—</span></div>
+      <div class="calc-r"><span>ค่าธรรมเนียมรวม</span><span class="cv" id="gsc-cost">—</span></div>
+      <div class="calc-r hl"><span>กำไร/ขาดทุนสุทธิ</span><span class="cv" id="gsc-pl">—</span></div>
     </div>`:`
     <div class="form-row">
       <div class="form-group"><label class="form-label">จำนวนที่ขาย</label><input class="form-input" type="number" step="0.01" id="ao-qty" placeholder="100"/></div>
@@ -1315,24 +1315,24 @@ function calcGoldBuy(){
 function calcGoldSell(){
   const sp=parseFloat(document.getElementById('ao-sp')?.value)||0;
   const sw=parseFloat(document.getElementById('ao-sw')?.value)||0;
-  const fee=parseFloat(document.getElementById('ao-fee')?.value)||0;
+  const sellFee=parseFloat(document.getElementById('ao-fee')?.value)||0;
   const calc=document.getElementById('gold-sell-calc');if(!calc)return;
   const oid=document.getElementById('f-sell-order')?.value;
   const a=assetList.find(x=>x.id===curOrderAssetId);
   const o=a?.assetOrders.find(x=>x.id===oid);
   if(!sp||!sw||!o){calc.style.display='none';return;}
-  const bg=goldBuyGrams(o);
-  const cpp=bg>0?(o.amountPaid+(o.fee||0))/bg:0;
-  const rev=(sp/GOLD_GRAM)*sw;
-  const cost=cpp*sw;
-  const pl=rev-cost-fee;
+  // Gold Now formula: profit = (sellPrice - buyPrice) / GOLD_GRAM × grams
+  const plBeforeFee=(sp-o.goldPrice)/GOLD_GRAM*sw;
+  const buyFee=o.fee||0;
+  const feeTotal=buyFee+sellFee;
+  const plNet=plBeforeFee-feeTotal;
   calc.style.display='block';
-  document.getElementById('gsc-inc').textContent='฿'+fmt(rev);
-  document.getElementById('gsc-cost').textContent='฿'+fmt(cost);
+  document.getElementById('gsc-inc').textContent=(plBeforeFee>=0?'+':'')+'฿'+fmt(Math.abs(plBeforeFee));
+  document.getElementById('gsc-cost').textContent='-฿'+fmt(feeTotal)+(buyFee>0?' (ซื้อ ฿'+fmt(buyFee)+(sellFee>0?' + ขาย ฿'+fmt(sellFee):'')+')':(sellFee>0?' (ขาย ฿'+fmt(sellFee)+')':''));
   const plEl=document.getElementById('gsc-pl');
-  plEl.textContent=(pl>=0?'+':'')+'฿'+fmt(Math.abs(pl));
-  plEl.className='cv '+(pl>=0?'income-c':'expense-c');
-  calc.className='calc-bx '+(pl>=0?'calc-bx-p':'calc-bx-l');
+  plEl.textContent=(plNet>=0?'+':'')+'฿'+fmt(Math.abs(plNet));
+  plEl.className='cv '+(plNet>=0?'income-c':'expense-c');
+  calc.className='calc-bx '+(plNet>=0?'calc-bx-p':'calc-bx-l');
 }
 
 
