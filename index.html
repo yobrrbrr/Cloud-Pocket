@@ -1231,12 +1231,12 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
 
   const sellFields=gold?`
     <div class="form-row">
-      <div class="form-group"><label class="form-label">ราคาขาย/บาท (฿)</label><input class="form-input" type="number" id="ao-sp" placeholder="72,000" oninput="calcGoldSell()"/></div>
-      <div class="form-group"><label class="form-label">น้ำหนักที่ขาย (บาท)</label><input class="form-input" type="number" step="0.001" id="ao-sw" placeholder="0.500" oninput="calcGoldSell()"/></div>
+      <div class="form-group"><label class="form-label">ราคาขายทอง/บาท (฿)</label><input class="form-input" type="number" id="ao-sp" placeholder="72,000" oninput="calcGoldSell()"/></div>
+      <div class="form-group"><label class="form-label">น้ำหนักที่ขาย (บาททอง)</label><input class="form-input" type="number" step="0.001" id="ao-sw" placeholder="0.500" oninput="calcGoldSell()"/></div>
     </div>
     <div id="gold-sell-calc" style="display:none" class="calc-bx calc-bx-n">
-      <div class="calc-r"><span>รายรับ</span><span class="cv" id="gsc-inc">—</span></div>
-      <div class="calc-r"><span>ต้นทุน</span><span class="cv" id="gsc-cost">—</span></div>
+      <div class="calc-r"><span>รายรับจากการขาย</span><span class="cv" id="gsc-inc">—</span></div>
+      <div class="calc-r"><span>ต้นทุน (ราคาซื้อ × น้ำหนัก)</span><span class="cv" id="gsc-cost">—</span></div>
       <div class="calc-r hl"><span>กำไร/ขาดทุน</span><span class="cv" id="gsc-pl">—</span></div>
     </div>`:`
     <div class="form-row">
@@ -1263,8 +1263,8 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
     <div id="ao-buy-fields">${type==='buy'?buyFields:''}</div>
     <div id="ao-sell-fields">${type==='sell'?sellFields:''}</div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">ค่าธรรมเนียม${gold?' / กำเหน็จ':''} (฿)</label><input class="form-input" type="number" step="0.01" id="ao-fee" value="0" oninput="${gold?'calcGoldBuy();calcGoldSell()':''}"/></div>
-      <div class="form-group"><label class="form-label">โบรกเกอร์</label><select class="form-input" id="ao-broker">${brokerOpts}</select></div>
+      <div class="form-group"><label class="form-label">ค่าธรรมเนียม${gold&&type==='buy'?' / กำเหน็จ':''} (฿)</label><input class="form-input" type="number" step="0.01" id="ao-fee" value="0" oninput="${gold?'calcGoldBuy();calcGoldSell()':''}"/></div>
+      ${type==='buy'?`<div class="form-group"><label class="form-label">โบรกเกอร์</label><select class="form-input" id="ao-broker">${brokerOpts}</select></div>`:'<div class="form-group"></div>'}
     </div>
     <div class="form-group"><label class="form-label">หมายเหตุ</label><input class="form-input" id="ao-note" placeholder="เช่น DCA, ทำกำไร..."/></div>
     <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveAssetOrder()">บันทึก</button></div>
@@ -1328,13 +1328,18 @@ function setAssetOrderType(t){
     document.getElementById('ao-buy-fields').innerHTML=t==='buy'?(window._goldBuyFields||''):'';
     document.getElementById('ao-sell-fields').innerHTML=t==='sell'?(window._goldSellFields||''):'';
   }
+  // Show/hide broker based on buy/sell
+  const brokerEl=document.getElementById('ao-broker');
+  const brokerGroup=brokerEl?.closest('.form-group');
+  if(brokerGroup)brokerGroup.style.display=t==='buy'?'block':'none';
 }
 
 async function saveAssetOrder(){
   const orderNo=(document.getElementById('ao-orderno').value||'').trim();
   const fee=parseFloat(document.getElementById('ao-fee').value)||0;
   const date=document.getElementById('ao-date').value;
-  const broker=document.getElementById('ao-broker').value;
+  const brokerEl=document.getElementById('ao-broker');
+  const broker=brokerEl?brokerEl.value:'';
   const note=(document.getElementById('ao-note').value||'').trim();
   if(!orderNo){alert('กรุณาระบุ Order No. ค่ะ');return;}
   const a=assetList.find(x=>x.id===curOrderAssetId);
