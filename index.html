@@ -916,10 +916,10 @@ function getATotalBought(a){if(isGold(a.type))return a.assetOrders.reduce((s,o)=
 function getATotalSold(a){if(isGold(a.type))return a.assetOrders.reduce((s,o)=>s+o.sells.reduce((x,sv)=>x+(sv.sellWeight||0),0),0);return a.assetOrders.reduce((s,o)=>s+o.sells.reduce((x,sv)=>x+sv.qty,0),0);}
 function getATotalCost(a){if(isGold(a.type))return a.assetOrders.reduce((s,o)=>s+o.amountPaid+(o.fee||0),0);return a.assetOrders.reduce((s,o)=>s+o.qty*o.price+(o.fee||0),0);}
 function getARealPL(a){return a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o,a),0);}
-function getAssetMV(a){return a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*a.price,0);}
+function getAssetMV(a){return a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*a.price,0);}
 function getAssetPL(a){
-  const openOrders=a.assetOrders.filter(o=>getOrderStatus(o)!=='closed');
-  const costBasis=openOrders.reduce((s,o)=>s+getOrderRemaining(o)*o.price,0);
+  const openOrders=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed');
+  const costBasis=openOrders.reduce((s,o)=>s+getOrderRemaining(o,a)*o.price,0);
   const mv=getAssetMV(a);
   const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
   return mv-costBasis+realized;
@@ -945,23 +945,19 @@ function renderAssets(){
       </div>
       <div class="pockets-grid">`;
     byType[type].forEach(a=>{
-      const mv=getAssetMV(a),pl=getAssetPL(a);
-      const plPct=mv>0?(pl/mv*100).toFixed(1):0;
-      const pct=a.goal?Math.min(100,Math.round(mv/a.goal*100)):0;
-      const days=getAssetDaysDiff(a.updatedAt);
-      const tagCls=days<=7?'asset-tag-fresh':'asset-tag-stale';
-      const tagTxt=days===0?'วันนี้':days<=7?`${days}วันที่แล้ว`:fmt_date(a.updatedAt);
-      const recentOrders=a.assetOrders.slice(-2).reverse();
-      const sel=selAsset===a.id;
-      const totalBought=a.assetOrders.reduce((s,o)=>s+o.qty,0);
-      const totalSold=a.assetOrders.reduce((s,o)=>s+o.sells.reduce((x,sv)=>x+sv.qty,0),0);
-      const holdQtyCard=totalBought-totalSold;
-      const totalCostCard=a.assetOrders.reduce((s,o)=>s+o.qty*o.price+o.fee,0);
-      const realizedCard=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
-      const unrealizedCard=holdQtyCard*a.price-a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*o.price,0);
-      const totalPLCard=realizedCard+unrealizedCard;
       const gold=isGold(a.type);
       const unitLabel=gold?'บาท':'หน่วย';
+      const totalBought=getATotalBought(a);
+      const totalSold=getATotalSold(a);
+      const holdQtyCard=totalBought-totalSold;
+      const totalCostCard=getATotalCost(a);
+      const realizedCard=getARealPL(a);
+      const pct=a.goal?Math.min(100,Math.round(totalCostCard/a.goal*100)):0;
+      const days=Math.floor((new Date()-new Date(a.updatedAt||'2026-01-01'))/86400000);
+      const tagCls=days<=7?'asset-tag-fresh':'asset-tag-stale';
+      const tagTxt=days===0?'วันนี้':days<=7?`${days}วันที่แล้ว`:fmtDate(a.updatedAt);
+      const recentOrders=a.assetOrders.slice(-2).reverse();
+      const sel=selAsset===a.id;
       html+=`<div class="pocket-card${sel?' active':''}" onclick="selectAsset('${a.id}')">
         ${gold?'<div class="gold-badge">💎 โหมดทอง</div>':''}
         <div class="pocket-name"><span class="dot" style="background:${a.color}"></span>${a.name}</div>
@@ -987,7 +983,7 @@ function renderAssets(){
         </div>
         ${totalSold<0.0001?`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--bg);border:0.5px solid var(--border-md);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--muted)">⏱ ยังไม่มีการขาย</div><div style="font-size:11px;color:var(--muted)">—</div></div>`:realizedCard>=0?`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--teal-bg);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--teal);font-weight:500">↑ กำไรจากการขาย</div><div style="font-size:12px;font-weight:500;color:var(--teal)">+฿${fmt(realizedCard)}</div></div>`:`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--coral-bg);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--coral);font-weight:500">↓ ขาดทุน</div><div style="font-size:12px;font-weight:500;color:var(--coral)">-฿${fmt(Math.abs(realizedCard))}</div></div>`}
         ${a.goal?`<div class="progress"><div class="progress-inner" style="width:${pct}%;background:${a.color}"></div></div><div class="pocket-pct">${pct}% จากเป้า ฿${fmt(a.goal)}</div>`:''}
-        <div class="asset-update-tag ${tagCls}"><i class="ti ti-clock" aria-hidden="true"></i> ${tagTxt} · ${fmt_date(a.updatedAt)}</div>
+        <div class="asset-update-tag ${tagCls}"><i class="ti ti-clock" aria-hidden="true"></i> ${tagTxt} · ${fmtDate(a.updatedAt)}</div>
         ${recentOrders.length?`<div class="asset-recent">${recentOrders.map(o=>`<div class="asset-recent-row"><span>Order #${o.orderNo}</span><span style="color:${getOrderStatus(o)==='closed'?'var(--muted)':getOrderStatus(o)==='partial'?'#BA7517':'var(--teal)'}">${getOrderStatus(o)==='open'?'🟢':getOrderStatus(o)==='partial'?'🟡':'⚫'} ${getOrderStatus(o)}</span></div>`).join('')}</div>`:''}
         <div class="card-actions">
           <button class="btn btn-sm" onclick="event.stopPropagation();openAssetOrderModal('${a.id}','buy')">+ บันทึก</button>
@@ -1003,7 +999,7 @@ function renderAssets(){
   renderAssetTx();
 }
 
-function fmt_date(s){if(!s)return'';const d=new Date(s);return `${d.getDate()} ${MONTHS[(d.getMonth())]} ${d.getFullYear()}`;}
+function fmtDate(s){if(!s)return'';const d=new Date(s);return `${d.getDate()} ${MONTHS[(d.getMonth())]} ${d.getFullYear()}`;}
 
 function renderAssetTx(){
   const sec=document.getElementById('asset-tx-section');
@@ -1012,8 +1008,8 @@ function renderAssetTx(){
   if(!a){sec.innerHTML='';return;}
   const orders=assetOrderFilter==='all'?a.assetOrders:a.assetOrders.filter(o=>getOrderStatus(o)===assetOrderFilter);
   const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
-  const holdQty=a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o),0);
-  const costBasis=a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*o.price,0);
+  const holdQty=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o),0);
+  const costBasis=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a)*o.price,0);
   const unrealized=holdQty*a.price-costBasis;
 
   const ordersHtml=orders.length?orders.map(o=>{
@@ -1035,7 +1031,7 @@ function renderAssetTx(){
         <div style="width:24px;height:24px;border-radius:50%;background:var(--coral-bg);color:var(--coral);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">↗</div>
         <div style="flex:1">
           <div style="font-size:12px;color:var(--text)">ขาย ${sv.qty} หน่วย × ฿${fmt(sv.price)}</div>
-          <div style="font-size:11px;color:var(--muted)">${fmt_date(sv.date)} · ${sv.broker}${sv.fee>0?' · ค่าธรรมเนียม ฿'+fmt(sv.fee):''}${sv.note?' · '+sv.note:''}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmtDate(sv.date)} · ${sv.broker}${sv.fee>0?' · ค่าธรรมเนียม ฿'+fmt(sv.fee):''}${sv.note?' · '+sv.note:''}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:12px;font-weight:500;color:var(--coral)">฿${fmt(sv.qty*sv.price)}</div>
@@ -1050,7 +1046,7 @@ function renderAssetTx(){
           <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;display:flex;align-items:center;gap:6px">
             <i class="ti ti-receipt" aria-hidden="true" style="font-size:14px;color:var(--muted)"></i>Order #${o.orderNo}
           </div>
-          <div style="font-size:11px;color:var(--muted)">${fmt_date(o.date)} · ${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmtDate(o.date)} · ${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
         </div>
         <div class="ord-badge ${pillCls}">${pillTxt}</div>
       </div>
