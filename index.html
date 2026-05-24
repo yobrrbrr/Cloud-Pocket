@@ -439,6 +439,11 @@ function showApp(user){
   db.collection('users').doc(uid).collection('assetList').orderBy('createdAt','asc').onSnapshot(snap=>{
     assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
     if(curSec==='assets')renderAssets();
+  },()=>{
+    db.collection('users').doc(uid).collection('assetList').onSnapshot(snap=>{
+      assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
+      if(curSec==='assets')renderAssets();
+    });
   });
 }
 
@@ -1162,6 +1167,7 @@ async function saveAssetItem(){
     await col.add({type,name,qty:0,cost:0,price:0,goal,note,color:assetPickedColor,updatedAt:today,assetOrders:[],createdAt:Date.now()});
   }
   closeModal();
+  if(curSec==='assets')setTimeout(()=>renderAssets(),500);
 }
 
 async function deleteAssetItem(id){
@@ -1350,5 +1356,3 @@ async function saveAssetOrder(){
 </script>
 </body>
 </html>
-
-
