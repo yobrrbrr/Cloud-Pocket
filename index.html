@@ -912,7 +912,19 @@ const GOLD_TYPES=['ทอง','Gold Now'];
 const GOLD_SUBTYPES=['ทองแท่ง 96.5%','ทองรูปพรรณ 96.5%','Gold Now','ทองคำแท่ง 99.99%'];
 function isGold(t){return GOLD_TYPES.includes(t);}
 const ASSET_TYPE_COLORS={'หุ้นไทย':'#378ADD','หุ้นต่างประเทศ':'#D85A30','ทอง':'#BA7517','Gold Now':'#BA7517','ที่ดิน':'#639922','คริปโต':'#7F77DD','กองทุนรวม':'#1D9E75','ประกัน':'#D4537E','อื่นๆ':'#888780'};
-const BROKERS=['Settrade','MBKET','KGI','Finansia','InnovestX','WeBull','Dime','KS-KBank','อื่นๆ'];
+const BROKERS_DEFAULT=['Settrade','MBKET','KGI','Finansia','InnovestX','WeBull','Dime','KS-KBank'];
+function getBrokers(){
+  const custom=JSON.parse(localStorage.getItem('cp_brokers')||'[]');
+  return [...BROKERS_DEFAULT,...custom,'อื่นๆ (เพิ่มใหม่)'];
+}
+function addCustomBroker(name){
+  if(!name.trim())return;
+  const custom=JSON.parse(localStorage.getItem('cp_brokers')||'[]');
+  if(!custom.includes(name.trim())&&!BROKERS_DEFAULT.includes(name.trim())){
+    custom.push(name.trim());
+    localStorage.setItem('cp_brokers',JSON.stringify(custom));
+  }
+}
 
 let assetList=[];
 let selAsset=null,assetOrderFilter='all',assetOrderType='buy',assetPickedColor=COLORS[0],editAssetId=null,curOrderAssetId=null;
@@ -929,11 +941,18 @@ function getOrderRemaining(o,a){
 }
 function getOrderRealizedPL(o,a){
   if(a&&isGold(a.type)){
-    // Gold Now formula: (sellPrice - buyPrice) / GOLD_GRAM × grams - fees
-    const buyFee=o.fee||0;
-    return o.sells.reduce((s,sv)=>{
-      const pl=(sv.goldPrice-o.goldPrice)/GOLD_GRAM*(sv.sellWeight||0);
-      return s+pl-buyFee*(sv.sellWeight||0)/goldBuyGrams(o)-sv.fee;
+    const totalGrams=goldBuyGrams(o);
+    const totalCost=o.amountPaid+(o.fee||0);
+    let usedCost=0;
+    return o.sells.reduce((s,sv,i)=>{
+      const sw=sv.sellWeight||0;
+      const revenue=sv.goldPrice*(sw/GOLD_GRAM);
+      const isLast=i===o.sells.length-1;
+      const totalSoldAfter=o.sells.slice(0,i+1).reduce((x,x2)=>x+(x2.sellWeight||0),0);
+      const isSellingAll=totalSoldAfter>=totalGrams-0.0001;
+      const costPortion=isSellingAll?(totalCost-usedCost):(totalGrams>0?totalCost*(sw/totalGrams):0);
+      usedCost+=costPortion;
+      return s+revenue-costPortion;
     },0);
   }
   return o.sells.reduce((s,sv)=>s+(sv.price-o.price)*sv.qty-sv.fee,0);
@@ -1217,7 +1236,7 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
   curOrderAssetId=aid;curAssetSellOrderId=sellOrderId||null;assetOrderType=type;
   const a=assetList.find(x=>x.id===aid);
   const gold=isGold(a.type);
-  const brokerOpts=BROKERS.map(b=>`<option>${b}</option>`).join('');
+  const brokerOpts=getBrokers().map(b=>`<option>${b}</option>`).join('');
   const openOrders=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed');
   const sellOrderOpts=openOrders.map(o=>`<option value="${o.id}"${o.id===sellOrderId?' selected':''}>Order #${o.orderNo} — เหลือ ${getOrderRemaining(o,a).toFixed(gold?4:0)} ${gold?'กรัม':'หน่วย'} · ทุน ${gold?'฿'+fmt(o.goldPrice)+'/บาท':'฿'+fmt(o.price)}</option>`).join('');
   const today=new Date().toISOString().split('T')[0];
@@ -1244,9 +1263,9 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
       <div class="form-group"><label class="form-label">น้ำหนักที่ขาย (กรัม)</label><input class="form-input" type="number" step="0.001" id="ao-sw" placeholder="0.500" oninput="calcGoldSell()"/></div>
     </div>
     <div id="gold-sell-calc" style="display:none" class="calc-bx calc-bx-n">
-      <div class="calc-r"><span>กำไร/ขาดทุน (ก่อนหักค่าธรรมเนียม)</span><span class="cv" id="gsc-inc">—</span></div>
-      <div class="calc-r"><span>ค่าธรรมเนียมรวม</span><span class="cv" id="gsc-cost">—</span></div>
-      <div class="calc-r hl"><span>กำไร/ขาดทุนสุทธิ</span><span class="cv" id="gsc-pl">—</span></div>
+      <div class="calc-r"><span>รายรับจากการขาย</span><span class="cv" id="gsc-inc">—</span></div>
+      <div class="calc-r"><span>ต้นทุน (ราคาซื้อ+ค่าธรรมเนียม)</span><span class="cv" id="gsc-cost">—</span></div>
+      <div class="calc-r hl"><span>กำไร/ขาดทุน</span><span class="cv" id="gsc-pl">—</span></div>
     </div>`:`
     <div class="form-row">
       <div class="form-group"><label class="form-label">จำนวนที่ขาย</label><input class="form-input" type="number" step="0.01" id="ao-qty" placeholder="100"/></div>
@@ -1273,8 +1292,9 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
     <div id="ao-sell-fields">${type==='sell'?sellFields:''}</div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">ค่าธรรมเนียม${gold&&type==='buy'?' / กำเหน็จ':''} (฿)</label><input class="form-input" type="number" step="0.01" id="ao-fee" value="0" oninput="${gold?'calcGoldBuy();calcGoldSell()':''}"/></div>
-      ${type==='buy'?`<div class="form-group"><label class="form-label">โบรกเกอร์</label><select class="form-input" id="ao-broker">${brokerOpts}</select></div>`:'<div class="form-group"></div>'}
+      ${type==='buy'?`<div class="form-group"><label class="form-label">โบรกเกอร์</label><select class="form-input" id="ao-broker" onchange="onBrokerChange(this)">${brokerOpts}</select></div>`:'<div class="form-group"></div>'}
     </div>
+    ${type==='buy'?`<div class="form-group" id="ao-broker-custom-grp" style="display:none"><label class="form-label">ชื่อโบรกเกอร์ใหม่</label><input class="form-input" id="ao-broker-custom" placeholder="พิมพ์ชื่อโบรกเกอร์..."/></div>`:''}
     <div class="form-group"><label class="form-label">หมายเหตุ</label><input class="form-input" id="ao-note" placeholder="เช่น DCA, ทำกำไร..."/></div>
     <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveAssetOrder()">บันทึก</button></div>
   </div></div>`;
@@ -1283,6 +1303,11 @@ function openAssetOrderModal(aid,type,sellOrderId=''){
   window._goldBuyFields=buyFields;
   window._goldSellFields=sellFields;
   if(sellOrderId)setTimeout(()=>onSelOrder(),50);
+}
+
+function onBrokerChange(sel){
+  const grp=document.getElementById('ao-broker-custom-grp');
+  if(grp)grp.style.display=sel.value==='อื่นๆ (เพิ่มใหม่)'?'block':'none';
 }
 
 function onSelOrder(){
@@ -1315,24 +1340,29 @@ function calcGoldBuy(){
 function calcGoldSell(){
   const sp=parseFloat(document.getElementById('ao-sp')?.value)||0;
   const sw=parseFloat(document.getElementById('ao-sw')?.value)||0;
-  const sellFee=parseFloat(document.getElementById('ao-fee')?.value)||0;
   const calc=document.getElementById('gold-sell-calc');if(!calc)return;
   const oid=document.getElementById('f-sell-order')?.value;
   const a=assetList.find(x=>x.id===curOrderAssetId);
   const o=a?.assetOrders.find(x=>x.id===oid);
   if(!sp||!sw||!o){calc.style.display='none';return;}
-  // Gold Now formula: profit = (sellPrice - buyPrice) / GOLD_GRAM × grams
-  const plBeforeFee=(sp-o.goldPrice)/GOLD_GRAM*sw;
-  const buyFee=o.fee||0;
-  const feeTotal=buyFee+sellFee;
-  const plNet=plBeforeFee-feeTotal;
+  const totalGrams=goldBuyGrams(o);
+  const alreadySold=o.sells.reduce((s,sv)=>s+(sv.sellWeight||0),0);
+  const remaining=Math.max(0,totalGrams-alreadySold);
+  const isSellingAll=sw>=remaining-0.0001;
+  const revenue=sp*(sw/GOLD_GRAM);
+  // ถ้าขายหมด ใช้ต้นทุนเต็ม ถ้าขายบางส่วน ใช้ proportional
+  const totalCostOrder=o.amountPaid+(o.fee||0);
+  const costAlreadyUsed=o.sells.reduce((s,sv)=>s+(totalGrams>0?totalCostOrder*(sv.sellWeight||0)/totalGrams:0),0);
+  const remainingCost=totalCostOrder-costAlreadyUsed;
+  const costTotal=isSellingAll?remainingCost:(totalGrams>0?totalCostOrder*(sw/totalGrams):0);
+  const pl=revenue-costTotal;
   calc.style.display='block';
-  document.getElementById('gsc-inc').textContent=(plBeforeFee>=0?'+':'')+'฿'+fmt(Math.abs(plBeforeFee));
-  document.getElementById('gsc-cost').textContent='-฿'+fmt(feeTotal)+(buyFee>0?' (ซื้อ ฿'+fmt(buyFee)+(sellFee>0?' + ขาย ฿'+fmt(sellFee):'')+')':(sellFee>0?' (ขาย ฿'+fmt(sellFee)+')':''));
+  document.getElementById('gsc-inc').textContent='฿'+fmt(revenue);
+  document.getElementById('gsc-cost').textContent='฿'+fmt(costTotal);
   const plEl=document.getElementById('gsc-pl');
-  plEl.textContent=(plNet>=0?'+':'')+'฿'+fmt(Math.abs(plNet));
-  plEl.className='cv '+(plNet>=0?'income-c':'expense-c');
-  calc.className='calc-bx '+(plNet>=0?'calc-bx-p':'calc-bx-l');
+  plEl.textContent=(pl>=0?'+':'')+'฿'+fmt(Math.abs(pl));
+  plEl.className='cv '+(pl>=0?'income-c':'expense-c');
+  calc.className='calc-bx '+(pl>=0?'calc-bx-p':'calc-bx-l');
 }
 
 
@@ -1356,7 +1386,12 @@ async function saveAssetOrder(){
   const fee=parseFloat(document.getElementById('ao-fee').value)||0;
   const date=document.getElementById('ao-date').value;
   const brokerEl=document.getElementById('ao-broker');
-  const broker=brokerEl?brokerEl.value:'';
+  let broker=brokerEl?brokerEl.value:'';
+  if(broker==='อื่นๆ (เพิ่มใหม่)'){
+    const custom=(document.getElementById('ao-broker-custom')?.value||'').trim();
+    if(custom){addCustomBroker(custom);broker=custom;}
+    else broker='อื่นๆ';
+  }
   const note=(document.getElementById('ao-note').value||'').trim();
   if(!orderNo){alert('กรุณาระบุ Order No. ค่ะ');return;}
   const a=assetList.find(x=>x.id===curOrderAssetId);
