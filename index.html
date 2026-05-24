@@ -960,6 +960,8 @@ function renderAssets(){
       const realizedCard=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
       const unrealizedCard=holdQtyCard*a.price-a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*o.price,0);
       const totalPLCard=realizedCard+unrealizedCard;
+      const gold=isGold(a.type);
+      const unitLabel=gold?'บาท':'หน่วย';
       html+=`<div class="pocket-card${sel?' active':''}" onclick="selectAsset('${a.id}')">
         ${gold?'<div class="gold-badge">💎 โหมดทอง</div>':''}
         <div class="pocket-name"><span class="dot" style="background:${a.color}"></span>${a.name}</div>
