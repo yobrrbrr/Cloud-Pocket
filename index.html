@@ -912,7 +912,7 @@ const GOLD_TYPES=['ทอง','Gold Now'];
 const GOLD_SUBTYPES=['ทองแท่ง 96.5%','ทองรูปพรรณ 96.5%','Gold Now','ทองคำแท่ง 99.99%'];
 function isGold(t){return GOLD_TYPES.includes(t);}
 const ASSET_TYPE_COLORS={'หุ้นไทย':'#378ADD','หุ้นต่างประเทศ':'#D85A30','ทอง':'#BA7517','Gold Now':'#BA7517','ที่ดิน':'#639922','คริปโต':'#7F77DD','กองทุนรวม':'#1D9E75','ประกัน':'#D4537E','อื่นๆ':'#888780'};
-const BROKERS_DEFAULT=['Settrade','MBKET','KGI','Finansia','InnovestX','WeBull','Dime','KS-KBank'];
+const BROKERS_DEFAULT=[];
 function getBrokers(){
   const custom=JSON.parse(localStorage.getItem('cp_brokers')||'[]');
   return [...BROKERS_DEFAULT,...custom,'อื่นๆ (เพิ่มใหม่)'];
@@ -1081,7 +1081,7 @@ function renderAssetTx(){
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
         <div style="width:24px;height:24px;border-radius:50%;background:var(--coral-bg);color:var(--coral);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">↗</div>
         <div style="flex:1">
-          <div style="font-size:12px;color:var(--text)">ขาย ${svQty} ${unitLabel} × ฿${fmt(svPr)}${gold?'/บาท':''}</div>
+          <div style="font-size:12px;color:var(--text)">${sv.orderNo?`<span style="color:var(--muted);font-weight:500">Order #${sv.orderNo}</span> · `:''}ขาย ${svQty} ${unitLabel} × ฿${fmt(svPr)}${gold?'/บาท':''}</div>
           <div style="font-size:11px;color:var(--muted)">${fmtDate(sv.date)} · ${sv.broker||''}${sv.fee>0?' · ค่าธรรมเนียม ฿'+fmt(sv.fee):''}${sv.note?' · '+sv.note:''}</div>
         </div>
         <div style="text-align:right">
