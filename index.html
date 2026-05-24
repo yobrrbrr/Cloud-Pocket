@@ -183,6 +183,23 @@ input,select{font-family:inherit}
 .calc-r .cv{font-weight:500;color:var(--text)}
 .calc-r.hl{border-top:1px solid var(--border);padding-top:5px;margin-top:3px}
 .calc-r.hl .cv{font-size:14px}
+
+/* Asset tab CSS */
+.asset-update-tag{font-size:11px;padding:2px 7px;border-radius:20px;display:inline-flex;align-items:center;gap:3px;margin-top:4px;margin-bottom:6px}
+.asset-tag-fresh{background:var(--teal-bg);color:var(--teal)}
+.asset-tag-stale{background:var(--coral-bg);color:var(--coral)}
+.asset-recent{border-top:1px solid var(--border);padding-top:5px;margin-top:4px}
+.asset-recent-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:2px 0}
+.add-asset-card{background:transparent;border:1.5px dashed var(--border-md);border-radius:var(--radius);padding:14px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted);font-size:13px;cursor:pointer}
+.add-asset-card:hover{background:var(--surface)}
+.asset-filter-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.asset-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border-md);background:var(--surface);color:var(--muted);font-size:11px;cursor:pointer}
+.asset-filter-btn.on{background:var(--text);color:var(--surface)}
+.ord-badge{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:500;flex-shrink:0}
+.ord-open{background:var(--teal-bg);color:var(--teal)}
+.ord-partial{background:#FAEEDA;color:#633806}
+.ord-closed{background:var(--bg);color:var(--muted);border:0.5px solid var(--border-md)}
+.asset-tx-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -921,7 +938,7 @@ function getAssetPL(a){
   const openOrders=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed');
   const costBasis=openOrders.reduce((s,o)=>s+getOrderRemaining(o,a)*o.price,0);
   const mv=getAssetMV(a);
-  const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
+  const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o,a),0);
   return mv-costBasis+realized;
 }
 function getAssetDaysDiff(d){return Math.floor((new Date()-new Date(d))/86400000);}
@@ -984,7 +1001,7 @@ function renderAssets(){
         ${totalSold<0.0001?`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--bg);border:0.5px solid var(--border-md);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--muted)">⏱ ยังไม่มีการขาย</div><div style="font-size:11px;color:var(--muted)">—</div></div>`:realizedCard>=0?`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--teal-bg);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--teal);font-weight:500">↑ กำไรจากการขาย</div><div style="font-size:12px;font-weight:500;color:var(--teal)">+฿${fmt(realizedCard)}</div></div>`:`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--coral-bg);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--coral);font-weight:500">↓ ขาดทุน</div><div style="font-size:12px;font-weight:500;color:var(--coral)">-฿${fmt(Math.abs(realizedCard))}</div></div>`}
         ${a.goal?`<div class="progress"><div class="progress-inner" style="width:${pct}%;background:${a.color}"></div></div><div class="pocket-pct">${pct}% จากเป้า ฿${fmt(a.goal)}</div>`:''}
         <div class="asset-update-tag ${tagCls}"><i class="ti ti-clock" aria-hidden="true"></i> ${tagTxt} · ${fmtDate(a.updatedAt)}</div>
-        ${recentOrders.length?`<div class="asset-recent">${recentOrders.map(o=>`<div class="asset-recent-row"><span>Order #${o.orderNo}</span><span style="color:${getOrderStatus(o)==='closed'?'var(--muted)':getOrderStatus(o)==='partial'?'#BA7517':'var(--teal)'}">${getOrderStatus(o)==='open'?'🟢':getOrderStatus(o)==='partial'?'🟡':'⚫'} ${getOrderStatus(o)}</span></div>`).join('')}</div>`:''}
+        ${recentOrders.length?`<div class="asset-recent">${recentOrders.map(o=>`<div class="asset-recent-row"><span>Order #${o.orderNo}</span><span style="color:${getOrderStatus(o,a)==='closed'?'var(--muted)':getOrderStatus(o,a)==='partial'?'#BA7517':'var(--teal)'}">${getOrderStatus(o,a)==='open'?'🟢':getOrderStatus(o,a)==='partial'?'🟡':'⚫'} ${getOrderStatus(o,a)}</span></div>`).join('')}</div>`:''}
         <div class="card-actions">
           <button class="btn btn-sm" onclick="event.stopPropagation();openAssetOrderModal('${a.id}','buy')">+ บันทึก</button>
           <button class="btn btn-sm" onclick="event.stopPropagation();openEditAssetModal('${a.id}')">✏️</button>
@@ -1007,34 +1024,40 @@ function renderAssetTx(){
   const a=assetList.find(x=>x.id===selAsset);
   if(!a){sec.innerHTML='';return;}
   const orders=assetOrderFilter==='all'?a.assetOrders:a.assetOrders.filter(o=>getOrderStatus(o)===assetOrderFilter);
-  const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
-  const holdQty=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o),0);
+  const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o,a),0);
+  const holdQty=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a),0);
   const costBasis=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a)*o.price,0);
   const unrealized=holdQty*a.price-costBasis;
 
+  const gold=isGold(a.type);
+  const unitLabel=gold?'บาท':'หน่วย';
   const ordersHtml=orders.length?orders.map(o=>{
-    const status=getOrderStatus(o);
-    const rem=getOrderRemaining(o);
-    const soldQty=o.qty-rem;
-    const soldPct=Math.round(soldQty/o.qty*100);
+    const status=getOrderStatus(o,a);
+    const rem=getOrderRemaining(o,a);
+    const bought=gold?(o.goldPrice>0?o.amountPaid/o.goldPrice:0):o.qty;
+    const soldQty=bought-rem;
+    const soldPct=bought>0?Math.round(soldQty/bought*100):0;
     const remainPct=100-soldPct;
-    const opl=getOrderRealizedPL(o);
-    const unrealO=(a.price-o.price)*rem;
+    const opl=getOrderRealizedPL(o,a);
+    const unrealO=gold?0:(a.price-o.price)*rem;
     const totalPL=opl+unrealO;
-    const totalCost=o.qty*o.price+o.fee;
+    const totalCost=gold?(o.amountPaid+(o.fee||0)):o.qty*o.price+(o.fee||0);
     const pillCls=status==='open'?'ord-open':status==='partial'?'ord-partial':'ord-closed';
     const pillTxt=status==='open'?'🟢 Open':status==='partial'?'🟡 Partial':'⚫ Closed';
 
     const sellItems=o.sells.map(sv=>{
-      const svPL=(sv.price-o.price)*sv.qty-sv.fee;
+      const svPL=gold?(sv.goldPrice-((o.amountPaid+(o.fee||0))/(o.goldPrice>0?o.amountPaid/o.goldPrice:1)))*(sv.sellWeight||0)-sv.fee:(sv.price-o.price)*sv.qty-sv.fee;
+      const svQty=gold?(sv.sellWeight||0).toFixed(3):sv.qty;
+      const svPr=gold?sv.goldPrice:sv.price;
+      const svAmt=gold?(sv.goldPrice*(sv.sellWeight||0)):sv.qty*sv.price;
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
         <div style="width:24px;height:24px;border-radius:50%;background:var(--coral-bg);color:var(--coral);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">↗</div>
         <div style="flex:1">
-          <div style="font-size:12px;color:var(--text)">ขาย ${sv.qty} หน่วย × ฿${fmt(sv.price)}</div>
-          <div style="font-size:11px;color:var(--muted)">${fmtDate(sv.date)} · ${sv.broker}${sv.fee>0?' · ค่าธรรมเนียม ฿'+fmt(sv.fee):''}${sv.note?' · '+sv.note:''}</div>
+          <div style="font-size:12px;color:var(--text)">ขาย ${svQty} ${unitLabel} × ฿${fmt(svPr)}${gold?'/บาท':''}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmtDate(sv.date)} · ${sv.broker||''}${sv.fee>0?' · ค่าธรรมเนียม ฿'+fmt(sv.fee):''}${sv.note?' · '+sv.note:''}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;font-weight:500;color:var(--coral)">฿${fmt(sv.qty*sv.price)}</div>
+          <div style="font-size:12px;font-weight:500;color:var(--coral)">฿${fmt(svAmt)}</div>
           <div style="font-size:11px;font-weight:500;color:${svPL>=0?'var(--teal)':'var(--coral)'}">${svPL>=0?'+':''}฿${fmt(Math.abs(svPL))}</div>
         </div>
       </div>`;
@@ -1054,19 +1077,20 @@ function renderAssetTx(){
         <div style="display:flex;align-items:stretch;gap:6px;margin-bottom:${soldQty>0&&rem>0?10:8}px">
           <div style="background:var(--teal-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--teal);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↙ ซื้อเข้า</div>
-            <div style="font-size:13px;font-weight:500;color:var(--teal)">${o.qty} หน่วย</div>
-            <div style="font-size:11px;color:var(--teal);margin-top:1px">฿${fmt(o.price)}/หน่วย</div>
+            <div style="font-size:13px;font-weight:500;color:var(--teal)">${gold?bought.toFixed(3):o.qty} ${unitLabel}</div>
+            <div style="font-size:11px;color:var(--teal);margin-top:1px">${gold?'฿'+fmt(o.goldPrice)+'/บาท':'฿'+fmt(o.price)+'/หน่วย'}</div>
+            ${gold?`<div style="font-size:10px;color:var(--teal);margin-top:1px">จ่าย ฿${fmt(o.amountPaid)}</div>`:''}
           </div>
           ${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>
           <div style="background:var(--coral-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--coral);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↗ ขายออก</div>
-            <div style="font-size:13px;font-weight:500;color:var(--coral)">${soldQty} หน่วย (${soldPct}%)</div>
+            <div style="font-size:13px;font-weight:500;color:var(--coral)">${gold?soldQty.toFixed(3):soldQty} ${unitLabel} (${soldPct}%)</div>
             <div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">Realized: ${opl>=0?'+':''}฿${fmt(Math.abs(opl))}</div>
           </div>`:''}
           ${rem>0?`${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>`:''}
           <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">💼 ถือครอง</div>
-            <div style="font-size:13px;font-weight:500;color:var(--text)">${rem} หน่วย (${remainPct}%)</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${gold?rem.toFixed(3):rem} ${unitLabel} (${remainPct}%)</div>
             <div style="font-size:11px;color:${unrealO>=0?'var(--teal)':'var(--coral)'};margin-top:1px">Unrealized: ${unrealO>=0?'+':''}฿${fmt(Math.abs(unrealO))}</div>
           </div>`:''}
         </div>
@@ -1300,6 +1324,10 @@ function setAssetOrderType(t){
   document.getElementById('ao-buy').className='type-opt'+(t==='buy'?' on-i':'');
   document.getElementById('ao-sell').className='type-opt'+(t==='sell'?' on-e':'');
   document.getElementById('ao-sell-select').style.display=t==='sell'?'block':'none';
+  if(window._goldBuyFields!==undefined){
+    document.getElementById('ao-buy-fields').innerHTML=t==='buy'?(window._goldBuyFields||''):'';
+    document.getElementById('ao-sell-fields').innerHTML=t==='sell'?(window._goldSellFields||''):'';
+  }
 }
 
 async function saveAssetOrder(){
