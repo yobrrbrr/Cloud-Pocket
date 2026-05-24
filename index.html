@@ -1132,7 +1132,7 @@ function renderAssetTx(){
           <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">💼 ถือครอง</div>
             <div style="font-size:13px;font-weight:500;color:var(--text)">${gold?rem.toFixed(4):rem} ${unitLabel} (${remainPct}%)</div>
-            <div style="font-size:11px;color:${unrealO>=0?'var(--teal)':'var(--coral)'};margin-top:1px">Unrealized: ${unrealO>=0?'+':''}฿${fmt(Math.abs(unrealO))}</div>
+            <div style="font-size:11px;color:${unrealO>=0?'var(--teal)':'var(--coral)'};margin-top:1px">กำไร/ขาดทุน(ในพอร์ต): ${unrealO>=0?'+':''}฿${fmt(Math.abs(unrealO))}</div>
           </div>`:''}
         </div>
         ${soldQty>0&&rem>0?`<div style="margin-bottom:10px">
