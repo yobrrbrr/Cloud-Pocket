@@ -1128,14 +1128,14 @@ function renderAssetTx(){
             ${gold&&o.sells.length?`<div style="font-size:11px;color:var(--coral);margin-top:1px">฿${fmt(o.sells[o.sells.length-1].goldPrice)}/บาท</div>`:''}
             <div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">กำไร: ${opl>=0?'+':''}฿${fmt(Math.abs(opl))}</div>
           </div>`:''}
-          ${rem>0?`${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>`:''}
+          ${rem>0.0001&&status!=='closed'?`${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>`:''}
           <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">💼 ถือครอง</div>
             <div style="font-size:13px;font-weight:500;color:var(--text)">${gold?rem.toFixed(4):rem} ${unitLabel} (${remainPct}%)</div>
             <div style="font-size:11px;color:${unrealO>=0?'var(--teal)':'var(--coral)'};margin-top:1px">กำไร/ขาดทุน(ในพอร์ต): ${unrealO>=0?'+':''}฿${fmt(Math.abs(unrealO))}</div>
           </div>`:''}
         </div>
-        ${soldQty>0&&rem>0?`<div style="margin-bottom:10px">
+        ${soldQty>0&&rem>0.0001&&status!=='closed'?`<div style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>ขายออก ${soldPct}%</span><span>ถือครอง ${remainPct}%</span></div>
           <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:flex">
             <div style="height:100%;width:${soldPct}%;background:var(--coral);border-radius:3px 0 0 3px"></div>
