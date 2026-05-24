@@ -1112,14 +1112,15 @@ function renderAssetTx(){
           <div style="background:var(--teal-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--teal);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↙ ซื้อเข้า</div>
             <div style="font-size:13px;font-weight:500;color:var(--teal)">${gold?bought.toFixed(4):o.qty} ${unitLabel}</div>
-            <div style="font-size:11px;color:var(--teal);margin-top:1px">${gold?'฿'+fmt(o.goldPrice)+'/บาท':'฿'+fmt(o.price)+'/หน่วย'}</div>
+            <div style="font-size:11px;color:var(--teal);margin-top:1px">${gold?'ราคาซื้อต่อ 1 บาททองคำ':''}</div>
+            <div style="font-size:11px;color:var(--teal)">${gold?'฿'+fmt(o.goldPrice)+'/บาท':'฿'+fmt(o.price)+'/หน่วย'}</div>
             ${gold?`<div style="font-size:10px;color:var(--teal);margin-top:1px">จ่าย ฿${fmt(o.amountPaid)}</div>`:''}
           </div>
           ${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>
           <div style="background:var(--coral-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
             <div style="font-size:10px;color:var(--coral);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↗ ขายออก</div>
             <div style="font-size:13px;font-weight:500;color:var(--coral)">${gold?soldQty.toFixed(4):soldQty} ${unitLabel} (${soldPct}%)</div>
-            ${gold&&o.sells.length?`<div style="font-size:11px;color:var(--coral);margin-top:1px">฿${fmt(o.sells[o.sells.length-1].goldPrice)}/บาท</div>`:''}
+            ${gold&&o.sells.length?`<div style="font-size:11px;color:var(--coral);margin-top:1px">ราคาขายต่อ 1 บาททองคำ</div><div style="font-size:11px;color:var(--coral)">฿${fmt(o.sells[o.sells.length-1].goldPrice)}/บาท</div>`:''}
             <div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">กำไร: ${opl>=0?'+':''}฿${fmt(Math.abs(opl))}</div>
           </div>`:''}
           ${rem>0?`${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>`:''}
