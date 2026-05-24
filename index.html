@@ -309,6 +309,12 @@ if(!isConfigured){
 const COLORS=['#1D9E75','#378ADD','#7F77DD','#D85A30','#D4537E','#BA7517','#639922','#888780'];
 const BANKS=['KBank','Make by KBank','SCB','TTB','Krungthai','Bangkok Bank','Krungsri','ธอส','ออมสิน','Cash','Gold Now','Gold','Stock','SET50','อื่นๆ'];
 const MONTHS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+// ── Broker reset migration (ล้างโบรกเกอร์เก่าครั้งเดียว) ──
+if(!localStorage.getItem('cp_broker_reset_v1')){
+  localStorage.removeItem('cp_brokers');
+  localStorage.setItem('cp_broker_reset_v1','1');
+}
 let db,auth,uid,unsubPockets,unsubTx;
 let pockets=[],transactions=[];
 let selPocket=null,viewMonth=new Date().getMonth()+1,viewYear=new Date().getFullYear();
