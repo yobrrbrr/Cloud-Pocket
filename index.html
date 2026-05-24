@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud Pocket — จัดการเงินส่วนตัว</title>
+<script>
+  const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyB3wrhZRHragd7ex_q-jpI8Bw5_EJPPZDA",
+  authDomain:        "my-cloud-pocket.firebaseapp.com",
+  projectId:         "my-cloud-pocket",
+  storageBucket:     "my-cloud-pocket.firebasestorage.app",
+  messagingSenderId: "867873889705",
+  appId:             "1:867873889705:web:7f01b79952d8b0e5b938b8"
+};
+  };
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#f7f6f3;--surface:#ffffff;--border:rgba(0,0,0,.08);--border-md:rgba(0,0,0,.14);--text:#1a1a18;--muted:#6b6b67;--hint:#9e9e99;--teal:#1D9E75;--teal-bg:#E1F5EE;--coral:#D85A30;--coral-bg:#FAECE7;--radius:12px;--radius-sm:8px}
+@media(prefers-color-scheme:dark){:root{--bg:#111110;--surface:#1c1c1a;--border:rgba(255,255,255,.08);--border-md:rgba(255,255,255,.14);--text:#f0ede8;--muted:#9e9e99;--hint:#6b6b67;--teal-bg:#0d3d2b;--coral-bg:#3d1a0c}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit}
+#app{max-width:680px;margin:0 auto;padding:16px 16px 80px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.logo{font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px}
+.logo svg{width:22px;height:22px;color:var(--teal)}
+.user-area{display:flex;align-items:center;gap:8px}
+.avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;border:1.5px solid var(--border-md)}
+.avatar-placeholder{width:32px;height:32px;border-radius:50%;background:var(--teal-bg);color:var(--teal);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-md);background:var(--surface);color:var(--text);font-size:13px;font-weight:500;transition:opacity .15s,background .15s}
+.btn:hover{background:var(--bg)}
+.btn-primary{background:var(--text);color:var(--surface);border-color:var(--text)}
+.btn-primary:hover{opacity:.82}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-ghost{border:none;background:none;padding:4px 6px;color:var(--muted)}
+.btn-ghost:hover{color:var(--coral)}
+.btn-google{background:#fff;color:#3c4043;border:1px solid #dadce0;padding:10px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;margin:0 auto}
+.btn-google:hover{background:#f8f9fa}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.stat{background:var(--surface);border-radius:var(--radius);padding:14px;border:1px solid var(--border)}
+.stat-label{font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.stat-val{font-size:20px;font-weight:600}
+@media(max-width:400px){.stats{grid-template-columns:1fr 1fr}.stat:first-child{grid-column:1/-1}}
+.bank-group{margin-bottom:18px}
+.bank-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.pockets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px}
+.pocket-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color .15s;position:relative}
+.pocket-card:hover{border-color:var(--border-md)}
+.pocket-card.active{border:2px solid var(--teal)}
+.pocket-card.archived{opacity:.45}
+.pocket-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pocket-bank-tag{font-size:11px;color:var(--muted);margin-bottom:6px}
+.pocket-note-tag{font-size:11px;color:var(--muted);background:var(--bg);border-radius:6px;padding:4px 7px;margin-bottom:8px;font-style:italic;display:flex;align-items:flex-start;gap:4px;line-height:1.4}
+.pocket-bal{font-size:20px;font-weight:700;margin-bottom:2px}
+.pocket-bal-label{font-size:11px;color:var(--muted)}
+.progress{height:4px;background:var(--border);border-radius:2px;margin:8px 0 4px;overflow:hidden}
+.progress-inner{height:100%;border-radius:2px;transition:width .4s}
+.pocket-pct{font-size:11px;color:var(--muted)}
+.recent-txs{margin:8px 0;border-top:1px solid var(--border);padding-top:6px}
+.recent-tx{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:2px 0}
+.card-actions{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.badge-archived{font-size:10px;background:var(--bg);color:var(--muted);padding:2px 7px;border-radius:20px;border:1px solid var(--border-md);display:inline-block;margin-bottom:5px}
+.add-card{background:transparent;border:1.5px dashed var(--border-md);border-radius:var(--radius);padding:14px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
+.add-card:hover{background:var(--surface)}
+.tx-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-top:6px}
+.tx-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.tx-panel-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px}
+.month-nav{display:flex;align-items:center;gap:6px}
+.month-label{font-size:13px;color:var(--muted);min-width:72px;text-align:center}
+.tx-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.tx-sum{background:var(--bg);border-radius:var(--radius-sm);padding:10px 12px}
+.tx-sum-label{font-size:11px;color:var(--muted);margin-bottom:3px}
+.tx-sum-val{font-size:15px;font-weight:700}
+.income-c{color:var(--teal)}
+.expense-c{color:var(--coral)}
+.tx-list{display:flex;flex-direction:column;gap:6px}
+.tx-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:var(--radius-sm)}
+.tx-ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.tx-ic-i{background:var(--teal-bg);color:var(--teal)}
+.tx-ic-e{background:var(--coral-bg);color:var(--coral)}
+.tx-note{flex:1;font-size:13px}
+.tx-amt{font-size:14px;font-weight:600}
+.empty{text-align:center;padding:28px 16px;color:var(--muted);font-size:13px}
+.empty-icon{font-size:28px;margin-bottom:8px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:500px){.overlay{align-items:center}}
+.modal{background:var(--surface);width:100%;max-width:420px;border-radius:var(--radius) var(--radius) 0 0;padding:20px;max-height:90vh;overflow-y:auto}
+@media(min-width:500px){.modal{border-radius:var(--radius);padding:24px}}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:16px}
+.form-group{margin-bottom:12px}
+.form-label{font-size:12px;font-weight:500;color:var(--muted);display:block;margin-bottom:4px}
+.form-input{width:100%;padding:9px 11px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:14px}
+.form-input:focus{outline:none;border-color:var(--teal)}
+.form-row{display:flex;gap:8px}
+.form-row .form-group{flex:1}
+.color-row{display:flex;gap:7px;flex-wrap:wrap}
+.color-swatch{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.color-swatch.on{border-color:var(--text);transform:scale(1.15)}
+.type-row{display:flex;border:1px solid var(--border-md);border-radius:var(--radius-sm);overflow:hidden}
+.type-opt{flex:1;padding:8px;font-size:13px;font-weight:500;border:none;background:none;color:var(--muted);transition:background .15s,color .15s}
+.type-opt.on-i{background:var(--teal-bg);color:var(--teal)}
+.type-opt.on-e{background:var(--coral-bg);color:var(--coral)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}
+.login-logo{font-size:40px;margin-bottom:8px}
+.login-title{font-size:22px;font-weight:700;margin-bottom:6px}
+.login-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:280px}
+#loading{display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:14px;color:var(--muted)}
+#config-error{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}
+.err-box{background:var(--coral-bg);border:1px solid var(--coral);border-radius:var(--radius);padding:20px;max-width:440px;text-align:left}
+.err-box h2{color:var(--coral);margin-bottom:8px;font-size:16px}
+.err-box p{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:6px}
+.err-box code{background:var(--bg);padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace}
+.fab{position:fixed;bottom:20px;right:20px;width:50px;height:50px;border-radius:50%;background:var(--text);color:var(--surface);border:none;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.18);cursor:pointer;z-index:50}
+.fab:hover{opacity:.85}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.chart-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.chart-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:14px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bar-name{font-size:12px;color:var(--muted);width:80px;text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:20px;background:var(--bg);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .5s}
+.bar-val{font-size:12px;color:var(--muted);width:72px;text-align:right;flex-shrink:0}
+.transfer-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.transfer-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:14px}
+.transfer-arrow{text-align:center;padding:4px 0;font-size:18px;color:var(--muted)}
+.transfer-success{margin-top:10px;padding:10px 12px;background:var(--teal-bg);border-radius:var(--radius-sm);font-size:13px;color:var(--teal);display:none}
+.sec-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.sec-tab{padding:6px 14px;border-radius:20px;border:1px solid var(--border-md);background:var(--surface);color:var(--muted);font-size:13px;cursor:pointer;font-weight:500}
+.sec-tab.on{background:var(--text);color:var(--surface);border-color:var(--text)}
+.yr-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:400px){.yr-cards{grid-template-columns:1fr 1fr}}
+.yr-card{background:var(--bg);border-radius:var(--radius-sm);padding:12px}
+.yr-card-label{font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.yr-card-val{font-size:17px;font-weight:600}
+.yr-chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.yr-chart-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.yr-chart-sub{font-size:12px;color:var(--muted);margin-bottom:12px}
+.yr-toggle{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.yr-tog{padding:5px 12px;border-radius:20px;border:1px solid var(--border-md);background:var(--surface);color:var(--muted);font-size:12px;cursor:pointer;font-weight:500}
+.yr-tog.on{background:var(--text);color:var(--surface)}
+.yr-legend{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.yr-leg{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.yr-leg-dot{width:10px;height:10px;border-radius:2px}
+.yr-table{width:100%;border-collapse:collapse;font-size:13px}
+.yr-table th{text-align:left;padding:8px 10px;background:var(--bg);color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.yr-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.yr-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+/* PIN screen */
+#pin-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:500;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+.pin-logo{font-size:40px;margin-bottom:8px}
+.pin-title{font-size:18px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.pin-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.pin-dots{display:flex;gap:14px;justify-content:center;margin-bottom:28px}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border-md);background:transparent;transition:background .15s}
+.pin-dot.filled{background:var(--text);border-color:var(--text)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px;justify-content:center}
+.pin-key{width:72px;height:72px;border-radius:50%;border:1px solid var(--border-md);background:var(--surface);font-size:22px;font-weight:500;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .1s}
+.pin-key:hover{background:var(--bg)}
+.pin-key.del{font-size:18px}
+.pin-error{color:var(--coral);font-size:13px;margin-top:12px;min-height:20px}
+.pin-biometric{margin-top:16px;font-size:13px;color:var(--teal);cursor:pointer;display:none}
+/* Drag handle */
+.drag-handle{cursor:grab;color:var(--muted);font-size:16px;position:absolute;top:8px;right:8px;opacity:.5}
+.drag-handle:active{cursor:grabbing}
+.pocket-card.dragging{opacity:.4;border:2px dashed var(--border-md)}
+.pocket-card.drag-over{border:2px solid var(--teal)}
+/* Archive toggle */
+.archive-toggle{font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:5px;margin-bottom:10px;user-select:none}
+
+.gold-badge{display:inline-flex;align-items:center;gap:3px;background:#FAEEDA;color:#BA7517;font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;margin-bottom:6px}
+.calc-bx{border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px}
+.calc-bx-n{background:var(--bg);border:1px solid var(--border-md)}
+.calc-bx-p{background:var(--teal-bg);border:1px solid var(--teal)}
+.calc-bx-l{background:var(--coral-bg);border:1px solid var(--coral)}
+.calc-r{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--muted)}
+.calc-r .cv{font-weight:500;color:var(--text)}
+.calc-r.hl{border-top:1px solid var(--border);padding-top:5px;margin-top:3px}
+.calc-r.hl .cv{font-size:14px}
+</style>
+</head>
+<body>
+<div id="loading">กำลังโหลด...</div>
+<div id="config-error" style="display:none">
+  <div class="err-box">
+    <h2>⚠️ ยังไม่ได้ตั้งค่า Firebase</h2>
+    <p>เปิดไฟล์นี้ด้วย text editor แล้วแก้ไขส่วน <code>FIREBASE_CONFIG</code> ด้านบน</p>
+    <p style="margin-top:10px"><strong>วิธีรับ config:</strong></p>
+    <p>1. ไปที่ <strong>console.firebase.google.com</strong></p>
+    <p>2. สร้าง Project ใหม่ (ฟรี)</p>
+    <p>3. เพิ่ม Web App → คัดลอก firebaseConfig</p>
+    <p>4. เปิด Firestore Database → สร้าง (production mode)</p>
+    <p>5. Authentication → เปิด Google Sign-in</p>
+    <p style="margin-top:10px">แล้ววาง config ลงในไฟล์นี้แทน <code>YOUR_API_KEY</code> ฯลฯ</p>
+  </div>
+</div>
+
+<!-- PIN Screen -->
+<div id="pin-screen">
+  <div class="pin-logo">🔒</div>
+  <div class="pin-title" id="pin-title">ใส่รหัส PIN</div>
+  <div class="pin-sub" id="pin-sub">กรอก PIN 4 หลักเพื่อเข้าใช้งาน</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key" onclick="pinKey('bio')">👆</button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key del" onclick="pinKey('del')">⌫</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div id="pin-skip" style="margin-top:20px;font-size:12px;color:var(--muted);cursor:pointer" onclick="skipPin()">ข้ามการตั้ง PIN (ตั้งทีหลังได้)</div>
+</div>
+
+<div id="login-screen" style="display:none">
+  <div class="login-logo">☁️</div>
+  <div class="login-title">Cloud Pocket</div>
+  <div class="login-sub">จัดการเงินแยกกระเป๋า ใช้ได้ทุก device ข้อมูลซิงค์อัตโนมัติ</div>
+  <button class="btn-google" id="login-btn">
+    <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+    เข้าสู่ระบบด้วย Google
+  </button>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+      Cloud Pocket
+    </div>
+    <div class="user-area">
+      <img id="user-avatar" class="avatar" src="" alt="avatar" style="display:none">
+      <div id="user-initials" class="avatar-placeholder" style="display:none"></div>
+      <button class="btn btn-sm" id="logout-btn">ออก</button>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">ยอดรวม</div><div class="stat-val" id="stat-total">฿0</div></div>
+    <div class="stat"><div class="stat-label">เป้าหมายรวม</div><div class="stat-val" id="stat-goal">฿0</div></div>
+    <div class="stat"><div class="stat-label">กระเป๋า</div><div class="stat-val" id="stat-count">0 ใบ</div></div>
+  </div>
+  <div class="sec-tabs">
+    <button class="sec-tab on" onclick="switchSec('yearly',this)">📅 เปรียบเทียบรายปี</button>
+    <button class="sec-tab" onclick="switchSec('chart',this)">📊 ภาพรวม</button>
+    <button class="sec-tab" onclick="switchSec('pockets',this)">☁️ กระเป๋า</button>
+    <button class="sec-tab" onclick="switchSec('transfer',this)">↔️ โอนระหว่างกระเป๋า</button>
+    <button class="sec-tab" onclick="switchSec('assets',this)">💼 ทรัพย์สิน</button>
+  </div>
+  <div id="sec-yearly"><div id="yearly-section"></div></div>
+  <div id="sec-chart" style="display:none"><div class="chart-panel" id="chart-section"></div></div>
+  <div id="sec-pockets" style="display:none">
+    <div id="pockets-section"></div>
+    <div id="tx-section"></div>
+  </div>
+  <div id="sec-transfer" style="display:none">
+    <div class="transfer-panel" id="transfer-section"></div>
+  </div>
+  <div id="sec-assets" style="display:none">
+    <div id="assets-section"></div>
+    <div id="asset-tx-section"></div>
+  </div>
+  <button class="fab" id="fab-btn" title="เพิ่มกระเป๋า">+</button>
+</div>
+<div id="modal-container"></div>
+
+<script>
+const cfg = FIREBASE_CONFIG;
+const isConfigured = cfg.apiKey && !cfg.apiKey.startsWith('YOUR_');
+if(!isConfigured){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('config-error').style.display='flex';
+}
+
+const COLORS=['#1D9E75','#378ADD','#7F77DD','#D85A30','#D4537E','#BA7517','#639922','#888780'];
+const BANKS=['KBank','Make by KBank','SCB','TTB','Krungthai','Bangkok Bank','Krungsri','ธอส','ออมสิน','Cash','Gold Now','Gold','Stock','SET50','อื่นๆ'];
+const MONTHS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+let db,auth,uid,unsubPockets,unsubTx;
+let pockets=[],transactions=[];
+let selPocket=null,viewMonth=new Date().getMonth()+1,viewYear=new Date().getFullYear();
+let txType='income',pickColor=COLORS[0];
+let curSec='yearly';
+let showArchived=false;
+let dragSrcId=null;
+
+// ── PIN System ──
+let pinBuffer='';
+let pinMode='check'; // 'check' | 'set' | 'confirm'
+let pinFirst='';
+
+function fmtDec(n){return parseFloat(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function fmt(n){return parseFloat(n).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+function initPin(){
+  const saved=localStorage.getItem('cp_pin');
+  const ps=document.getElementById('pin-screen');
+  if(!saved){
+    pinMode='set';
+    document.getElementById('pin-title').textContent='ตั้งรหัส PIN';
+    document.getElementById('pin-sub').textContent='ตั้ง PIN 4 หลักเพื่อความปลอดภัย';
+    document.getElementById('pin-skip').style.display='block';
+    ps.style.display='flex';
+  } else {
+    pinMode='check';
+    document.getElementById('pin-title').textContent='ใส่รหัส PIN';
+    document.getElementById('pin-sub').textContent='กรอก PIN เพื่อเข้าใช้งาน';
+    document.getElementById('pin-skip').style.display='none';
+    ps.style.display='flex';
+    tryBiometric();
+  }
+}
+
+function tryBiometric(){
+  if(window.PublicKeyCredential){
+    const bioBtn=document.querySelector('.pin-key:first-child');
+  }
+}
+
+async function useBiometric(){
+  try{
+    const cred=await navigator.credentials.get({
+      publicKey:{challenge:new Uint8Array(32),timeout:60000,userVerification:'required'}
+    });
+    if(cred)unlockApp();
+  }catch(e){
+    document.getElementById('pin-error').textContent='Biometric ไม่สำเร็จ กรุณาใช้ PIN';
+  }
+}
+
+function pinKey(k){
+  const err=document.getElementById('pin-error');
+  err.textContent='';
+  if(k==='bio'){useBiometric();return;}
+  if(k==='del'){pinBuffer=pinBuffer.slice(0,-1);updatePinDots();return;}
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=k;
+  updatePinDots();
+  if(pinBuffer.length===4){
+    setTimeout(()=>{
+      if(pinMode==='check'){
+        const saved=localStorage.getItem('cp_pin');
+        if(pinBuffer===saved){unlockApp();}
+        else{err.textContent='PIN ไม่ถูกต้อง ลองอีกครั้ง';pinBuffer='';updatePinDots();}
+      } else if(pinMode==='set'){
+        pinFirst=pinBuffer;pinBuffer='';
+        pinMode='confirm';
+        document.getElementById('pin-title').textContent='ยืนยัน PIN อีกครั้ง';
+        document.getElementById('pin-sub').textContent='กรอก PIN เดิมอีกครั้ง';
+        document.getElementById('pin-skip').style.display='none';
+        updatePinDots();
+      } else if(pinMode==='confirm'){
+        if(pinBuffer===pinFirst){
+          localStorage.setItem('cp_pin',pinBuffer);
+          unlockApp();
+        } else {
+          err.textContent='PIN ไม่ตรงกัน กรุณาเริ่มใหม่';
+          pinBuffer='';pinFirst='';pinMode='set';
+          document.getElementById('pin-title').textContent='ตั้งรหัส PIN';
+          document.getElementById('pin-sub').textContent='ตั้ง PIN 4 หลักเพื่อความปลอดภัย';
+          document.getElementById('pin-skip').style.display='block';
+          updatePinDots();
+        }
+      }
+    },120);
+  }
+}
+
+function updatePinDots(){
+  for(let i=0;i<4;i++){
+    const d=document.getElementById('pd'+i);
+    if(d)d.classList.toggle('filled',i<pinBuffer.length);
+  }
+}
+
+function skipPin(){
+  localStorage.removeItem('cp_pin');
+  unlockApp();
+}
+
+function unlockApp(){
+  document.getElementById('pin-screen').style.display='none';
+  pinBuffer='';updatePinDots();
+}
+
+// ── Firebase ──
+if(isConfigured){
+  firebase.initializeApp(cfg);
+  db=firebase.firestore(); auth=firebase.auth();
+  auth.onAuthStateChanged(user=>{
+    document.getElementById('loading').style.display='none';
+    if(user){uid=user.uid;initPin();showApp(user);}
+    else{document.getElementById('login-screen').style.display='flex';document.getElementById('app').style.display='none';}
+  });
+  document.getElementById('login-btn')&&document.getElementById('login-btn').addEventListener('click',()=>{
+    const p=new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(p).catch(e=>alert('Login ล้มเหลว: '+e.message));
+  });
+}
+
+function showApp(user){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  if(user.photoURL){const i=document.getElementById('user-avatar');i.src=user.photoURL;i.style.display='block';}
+  else{const e=document.getElementById('user-initials');e.textContent=(user.displayName||user.email||'U').charAt(0).toUpperCase();e.style.display='flex';}
+  document.getElementById('logout-btn').onclick=()=>auth.signOut();
+  document.getElementById('fab-btn').onclick=()=>{
+    if(curSec==='assets')openAddAssetModal();
+    else openPocketModal();
+  };
+  if(unsubPockets)unsubPockets();if(unsubTx)unsubTx();
+  unsubPockets=db.collection('users').doc(uid).collection('pockets').orderBy('order','asc').onSnapshot(snap=>{
+    pockets=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();
+  },()=>{
+    unsubPockets=db.collection('users').doc(uid).collection('pockets').orderBy('createdAt','asc').onSnapshot(snap=>{
+      pockets=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();
+    });
+  });
+  unsubTx=db.collection('users').doc(uid).collection('transactions').onSnapshot(snap=>{
+    transactions=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();
+  });
+
+  db.collection('users').doc(uid).collection('assetList').orderBy('createdAt','asc').onSnapshot(snap=>{
+    assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
+    if(curSec==='assets')renderAssets();
+  });
+}
+
+function getPocketBal(pid){return transactions.filter(t=>t.pocketId===pid).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0)}
+function getMonthTx(pid,m,y){return transactions.filter(t=>t.pocketId===pid&&t.month===m&&t.year===y)}
+function getRecentTx(pid,n){return transactions.filter(t=>t.pocketId===pid).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,n)}
+
+function switchSec(name,btn){
+  curSec=name;
+  document.querySelectorAll('.sec-tab').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  ['pockets','chart','transfer','yearly','assets'].forEach(s=>{
+    document.getElementById('sec-'+s).style.display=s===name?'block':'none';
+  });
+  if(name==='chart')renderChart();
+  if(name==='transfer')renderTransfer();
+  if(name==='yearly')renderYearly();
+  if(name==='assets')renderAssets();
+}
+
+function renderAll(){
+  renderStats();renderPockets();renderTx();
+  if(curSec==='chart')renderChart();
+  if(curSec==='transfer')renderTransfer();
+  if(curSec==='yearly')renderYearly();
+}
+
+function renderStats(){
+  const activePockets=pockets.filter(p=>!p.archived);
+  const total=activePockets.reduce((s,p)=>s+Math.max(0,getPocketBal(p.id)),0);
+  const goal=activePockets.reduce((s,p)=>s+(p.goal||0),0);
+  document.getElementById('stat-total').textContent='฿'+fmt(total);
+  document.getElementById('stat-goal').textContent='฿'+fmt(goal);
+  document.getElementById('stat-count').textContent=activePockets.length+' ใบ';
+}
+
+function renderPockets(){
+  const section=document.getElementById('pockets-section');
+  const visible=showArchived?pockets:pockets.filter(p=>!p.archived);
+  const archived=pockets.filter(p=>p.archived);
+  if(!pockets.length){section.innerHTML='<div class="empty"><div class="empty-icon">☁️</div><div>ยังไม่มีกระเป๋า กด + เพื่อเริ่มต้น</div></div>';return;}
+  const byBank={};
+  visible.forEach(p=>{if(!byBank[p.bank])byBank[p.bank]=[];byBank[p.bank].push(p);});
+  let html='';
+  if(archived.length>0){
+    html+=`<div class="archive-toggle" onclick="toggleShowArchived()">
+      ${showArchived?'🔽':'▶️'} ${showArchived?'ซ่อน':'แสดง'} Pocket ที่ archived (${archived.length})
+    </div>`;
+  }
+  Object.keys(byBank).forEach(bank=>{
+    html+=`<div class="bank-group"><div class="bank-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22V12M9 22V12M15 22V12M21 22V12M1 12l11-9 11 9M12 22v-4"/></svg>${bank}</div><div class="pockets-grid" id="grid-${bank.replace(/\s/g,'_')}">`;
+    byBank[bank].forEach(p=>{
+      const bal=getPocketBal(p.id);
+      const pct=p.goal?Math.min(100,Math.round(Math.max(0,bal)/p.goal*100)):0;
+      const sel=selPocket===p.id;
+      const recentTxs=getRecentTx(p.id,2);
+      const recentHtml=recentTxs.length?`<div class="recent-txs">${recentTxs.map(t=>`<div class="recent-tx"><span>${t.note||'—'}</span><span style="color:${t.type==='income'?'var(--teal)':'var(--coral)'}">${t.type==='income'?'+':'-'}฿${fmt(t.amount)}</span></div>`).join('')}</div>`:'';
+      const noteHtml=p.note?`<div class="pocket-note-tag">📝 ${p.note}</div>`:'';
+      html+=`<div class="pocket-card ${sel?'active':''} ${p.archived?'archived':''}"
+        onclick="selectPocket('${p.id}')"
+        draggable="true"
+        ondragstart="dragStart(event,'${p.id}')"
+        ondragover="dragOver(event)"
+        ondrop="dragDrop(event,'${p.id}')"
+        ondragleave="dragLeave(event)"
+        ondragend="dragEnd(event)">
+        <span class="drag-handle" title="ลากเพื่อจัดเรียง">⠿</span>
+        ${p.archived?'<div class="badge-archived">📦 archived</div>':''}
+        <div class="pocket-name"><span class="dot" style="background:${p.color}"></span>${p.name}</div>
+        <div class="pocket-bank-tag">${bank}</div>
+        ${noteHtml}
+        <div class="pocket-bal-label">ยอดปัจจุบัน</div>
+        <div class="pocket-bal" style="color:${p.color}">฿${fmt(Math.max(0,bal))}</div>
+        ${p.goal?`<div class="progress"><div class="progress-inner" style="width:${pct}%;background:${p.color}"></div></div><div class="pocket-pct">${pct}% จากเป้า ฿${fmt(p.goal)}</div>`:''}
+        ${recentHtml}
+        <div class="card-actions">
+          <button class="btn btn-sm" onclick="event.stopPropagation();openTxModal('${p.id}')">+ บันทึก</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();openEditPocketModal('${p.id}')" title="แก้ไข">✏️</button>
+          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();toggleArchive('${p.id}',${!!p.archived})" title="${p.archived?'Restore':'Archive'}">${p.archived?'📤':'📦'}</button>
+          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();deletePocket('${p.id}')" title="ลบ">🗑</button>
+        </div>
+      </div>`;
+    });
+    html+=`<button class="add-card" onclick="openPocketModal('${bank}')">+ เพิ่มกระเป๋า</button></div></div>`;
+  });
+  section.innerHTML=html;
+}
+
+function toggleShowArchived(){showArchived=!showArchived;renderPockets();}
+
+async function toggleArchive(id,isArchived){
+  await db.collection('users').doc(uid).collection('pockets').doc(id).update({archived:!isArchived});
+}
+
+// Drag & Drop
+function dragStart(e,id){dragSrcId=id;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
+function dragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');e.dataTransfer.dropEffect='move';}
+function dragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function dragEnd(e){e.currentTarget.classList.remove('dragging');}
+async function dragDrop(e,targetId){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(!dragSrcId||dragSrcId===targetId)return;
+  const srcIdx=pockets.findIndex(p=>p.id===dragSrcId);
+  const tgtIdx=pockets.findIndex(p=>p.id===targetId);
+  const reordered=[...pockets];
+  const [moved]=reordered.splice(srcIdx,1);
+  reordered.splice(tgtIdx,0,moved);
+  const batch=db.batch();
+  reordered.forEach((p,i)=>{batch.update(db.collection('users').doc(uid).collection('pockets').doc(p.id),{order:i});});
+  await batch.commit();
+  dragSrcId=null;
+}
+
+function renderTx(){
+  const section=document.getElementById('tx-section');
+  if(!selPocket){section.innerHTML='';return;}
+  const p=pockets.find(x=>x.id===selPocket);
+  if(!p){section.innerHTML='';return;}
+  const txs=getMonthTx(p.id,viewMonth,viewYear);
+  const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const net=inc-exp;
+  const mLabel=MONTHS[viewMonth-1]+' '+viewYear;
+  let txHtml=txs.length?txs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(t=>`
+    <div class="tx-item">
+      <div class="tx-ic ${t.type==='income'?'tx-ic-i':'tx-ic-e'}">${t.type==='income'?'↙':'↗'}</div>
+      <div style="flex:1">
+        <div class="tx-note">${t.note||'—'}</div>
+        <div style="font-size:11px;color:var(--hint)">${t.day?t.day+' ':''}${MONTHS[(t.month||1)-1]||''} ${t.year||''}</div>
+      </div>
+      <div class="tx-amt ${t.type==='income'?'income-c':'expense-c'}">${t.type==='income'?'+':'-'}฿${fmt(t.amount)}</div>
+      <button class="btn-ghost" onclick="deleteTx('${t.id}')">✕</button>
+    </div>`).join(''):'<div class="empty"><div class="empty-icon">📋</div>ยังไม่มีรายการเดือนนี้</div>';
+  section.innerHTML=`<div class="divider"></div>
+    <div class="tx-panel">
+      <div class="tx-panel-header">
+        <div class="tx-panel-title"><span class="dot" style="background:${p.color};width:11px;height:11px"></span>${p.name}</div>
+        <div class="month-nav">
+          <button class="btn btn-sm" onclick="changeMonth(-1)">‹</button>
+          <span class="month-label">${mLabel}</span>
+          <button class="btn btn-sm" onclick="changeMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="tx-summary">
+        <div class="tx-sum"><div class="tx-sum-label">รายรับ</div><div class="tx-sum-val income-c">+฿${fmt(inc)}</div></div>
+        <div class="tx-sum"><div class="tx-sum-label">รายจ่าย</div><div class="tx-sum-val expense-c">-฿${fmt(exp)}</div></div>
+        <div class="tx-sum"><div class="tx-sum-label">สุทธิ</div><div class="tx-sum-val ${net>=0?'income-c':'expense-c'}">${net>=0?'+':'-'}฿${fmt(Math.abs(net))}</div></div>
+      </div>
+      <div class="tx-list">${txHtml}</div>
+    </div>`;
+}
+
+function renderChart(){
+  const section=document.getElementById('chart-section');
+  const active=pockets.filter(p=>!p.archived);
+  if(!active.length){section.innerHTML='<div class="empty"><div class="empty-icon">📊</div>ยังไม่มีกระเป๋า</div>';return;}
+
+  // Group by bank
+  const byBank={};
+  active.forEach(p=>{if(!byBank[p.bank])byBank[p.bank]=[];byBank[p.bank].push(p);});
+  const bankInitial=name=>name.replace('Make by ','M').replace('KBank','K').replace('SCB','S').replace('TTB','T').replace('Krungthai','KT').replace('Bangkok Bank','B').replace('Krungsri','KS').charAt(0).toUpperCase();
+  const bankColors={KBank:'#1D9E75',SCB:'#7F77DD',TTB:'#378ADD','Make by KBank':'#D4537E',Krungthai:'#639922','Bangkok Bank':'#D85A30',Krungsri:'#BA7517'};
+  const bankBg={KBank:'#E1F5EE',SCB:'#EEEDFE',TTB:'#E6F1FB','Make by KBank':'#FBEAF0',Krungthai:'#EAF3DE','Bangkok Bank':'#FAECE7',Krungsri:'#FAEEDA'};
+  const bankTx={KBank:'#0F6E56',SCB:'#3C3489',TTB:'#185FA5','Make by KBank':'#993556',Krungthai:'#3B6D11','Bangkok Bank':'#993C1D',Krungsri:'#854F0B'};
+
+  let html=`<div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">แยกตามธนาคาร</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px">`;
+
+  Object.keys(byBank).forEach(bank=>{
+    const bPockets=byBank[bank];
+    const bankTotal=bPockets.reduce((s,p)=>s+Math.max(0,getPocketBal(p.id)),0);
+    const bc=bankColors[bank]||'#888780';
+    const bb=bankBg[bank]||'#F1EFE8';
+    const bt=bankTx[bank]||'#5F5E5A';
+    const init=bankInitial(bank);
+    let pRows=bPockets.map(p=>{
+      const bal=Math.max(0,getPocketBal(p.id));
+      const pct=bankTotal>0?Math.round(bal/bankTotal*100):0;
+      return `<div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <div style="width:7px;height:7px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
+          <div style="font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</div>
+          <div style="font-size:12px;color:var(--muted);flex-shrink:0">฿${fmt(bal)}</div>
+          <div style="font-size:11px;font-weight:500;color:${p.color};width:36px;text-align:right;flex-shrink:0">${pct}%</div>
+        </div>
+        <div style="height:3px;border-radius:2px;background:var(--border);overflow:hidden;margin-bottom:6px">
+          <div style="height:100%;border-radius:2px;width:${pct}%;background:${p.color}"></div>
+        </div>
+      </div>`;
+    }).join('');
+    html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="width:30px;height:30px;border-radius:var(--radius-sm);background:${bb};color:${bt};font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${init}</div>
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text)">${bank}</div>
+          <div style="font-size:12px;color:var(--muted)">฿${fmt(bankTotal)}</div>
+        </div>
+      </div>
+      <div style="height:0.5px;background:var(--border);margin-bottom:10px"></div>
+      ${pRows}
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // Bar chart
+  const data=active.map(p=>({name:p.name,bal:Math.max(0,getPocketBal(p.id)),color:p.color})).sort((a,b)=>b.bal-a.bal);
+  const maxVal=Math.max(...data.map(d=>d.bal),1);
+  const total=data.reduce((s,d)=>s+d.bal,0);
+  html+=`<div style="height:1px;background:var(--border);margin:4px 0 14px"></div>
+  <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:14px">สัดส่วนยอดเงินแต่ละกระเป๋า</div>`;
+  data.forEach(d=>{
+    const pct=total>0?Math.round(d.bal/total*100):0;
+    const w=Math.round(d.bal/maxVal*100);
+    html+=`<div class="bar-row">
+      <div class="bar-name" title="${d.name}">${d.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${d.color}"></div></div>
+      <div class="bar-val">฿${fmt(d.bal)} <span style="color:var(--hint);font-size:11px">(${pct}%)</span></div>
+    </div>`;
+  });
+  if(total>0){
+    html+=`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px">`;
+    data.forEach(d=>{const pct=Math.round(d.bal/total*100);html+=`<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name} ${pct}%</div>`;});
+    html+=`</div>`;
+  }
+  section.innerHTML=html;
+}
+
+function renderTransfer(){
+  const section=document.getElementById('transfer-section');
+  const active=pockets.filter(p=>!p.archived);
+  if(active.length<2){section.innerHTML='<div class="empty"><div class="empty-icon">↔️</div>ต้องมีกระเป๋าอย่างน้อย 2 ใบ</div>';return;}
+  const opts=active.map(p=>`<option value="${p.id}">${p.name} — ${p.bank} (฿${fmt(Math.max(0,getPocketBal(p.id)))})</option>`).join('');
+  section.innerHTML=`
+    <div class="transfer-title">↔️ โอนเงินระหว่างกระเป๋า</div>
+    <div class="form-group"><label class="form-label">จากกระเป๋า</label><select class="form-input" id="t-from">${opts}</select></div>
+    <div class="transfer-arrow">↓</div>
+    <div class="form-group"><label class="form-label">ไปกระเป๋า</label><select class="form-input" id="t-to">${opts}</select></div>
+    <div class="form-group"><label class="form-label">จำนวนเงิน (บาท)</label><input class="form-input" id="t-amt" type="number" step="0.01" placeholder="0.00" inputmode="decimal"/></div>
+    <div class="form-group"><label class="form-label">หมายเหตุ</label><input class="form-input" id="t-note" placeholder="เช่น โอนเพื่อซื้อของ..."/></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-primary" onclick="doTransfer()">โอนเงิน</button>
+    </div>
+    <div class="transfer-success" id="transfer-ok"></div>`;
+  if(active.length>=2)document.getElementById('t-to').selectedIndex=1;
+}
+
+async function doTransfer(){
+  const fromId=document.getElementById('t-from').value;
+  const toId=document.getElementById('t-to').value;
+  const amount=parseFloat(document.getElementById('t-amt').value)||0;
+  const note=(document.getElementById('t-note').value||'').trim();
+  if(fromId===toId){alert('กรุณาเลือกกระเป๋าต่างกัน');return;}
+  if(!amount||amount<=0){alert('กรุณาระบุจำนวนเงิน');return;}
+  const fromBal=getPocketBal(fromId);
+  if(amount>fromBal){alert('ยอดเงินในกระเป๋าต้นทางไม่เพียงพอ');return;}
+  const fromP=pockets.find(p=>p.id===fromId);
+  const toP=pockets.find(p=>p.id===toId);
+  const batch=db.batch();
+  const col=db.collection('users').doc(uid).collection('transactions');
+  batch.set(col.doc(),{pocketId:fromId,type:'expense',amount,note:note||`โอนไป ${toP.name}`,month:viewMonth,year:viewYear,createdAt:Date.now()});
+  batch.set(col.doc(),{pocketId:toId,type:'income',amount,note:note||`รับจาก ${fromP.name}`,month:viewMonth,year:viewYear,createdAt:Date.now()});
+  await batch.commit();
+  const ok=document.getElementById('transfer-ok');
+  ok.style.display='block';
+  ok.textContent=`✓ โอน ฿${fmt(amount)} จาก ${fromP.name} → ${toP.name} เรียบร้อยแล้วค่ะ`;
+  document.getElementById('t-amt').value='';
+  document.getElementById('t-note').value='';
+}
+
+function selectPocket(id){selPocket=selPocket===id?null:id;renderAll();if(selPocket)setTimeout(()=>document.getElementById('tx-section').scrollIntoView({behavior:'smooth'}),100);}
+function changeMonth(d){viewMonth+=d;if(viewMonth>12){viewMonth=1;viewYear++}if(viewMonth<1){viewMonth=12;viewYear--}renderTx();}
+
+async function deletePocket(id){
+  if(!confirm('ลบกระเป๋านี้และรายการทั้งหมด?'))return;
+  const batch=db.batch();
+  batch.delete(db.collection('users').doc(uid).collection('pockets').doc(id));
+  const txSnap=await db.collection('users').doc(uid).collection('transactions').where('pocketId','==',id).get();
+  txSnap.forEach(d=>batch.delete(d.ref));
+  await batch.commit();
+  if(selPocket===id)selPocket=null;
+}
+async function deleteTx(id){if(!confirm('ลบรายการนี้?'))return;await db.collection('users').doc(uid).collection('transactions').doc(id).delete();}
+
+// ── Modals ──
+function openPocketModal(defBank=''){
+  pickColor=COLORS[0];
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">✦ เพิ่ม Cloud Pocket ใหม่</div>
+    <div class="form-group"><label class="form-label">ชื่อกระเป๋า</label><input class="form-input" id="f-name" placeholder="เช่น Education, Travel..."/></div>
+    <div class="form-group"><label class="form-label">ธนาคาร</label><select class="form-input" id="f-bank">${BANKS.map(b=>`<option${b===defBank?' selected':''}>${b}</option>`).join('')}</select></div>
+    <div class="form-group"><label class="form-label">เป้าหมาย (บาท)</label><input class="form-input" id="f-goal" type="number" step="0.01" placeholder="50000"/></div>
+    <div class="form-group"><label class="form-label">โน้ต / หมายเหตุ</label><input class="form-input" id="f-pnote" placeholder="จะแสดงบนการ์ด..."/></div>
+    <div class="form-group"><label class="form-label">สี</label><div class="color-row">${COLORS.map((c,i)=>`<div class="color-swatch${i===0?' on':''}" style="background:${c}" data-c="${c}" onclick="swatchClick(this)"></div>`).join('')}</div></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="savePocket()">บันทึก</button></div>
+  </div></div>`;
+}
+
+function openEditPocketModal(id){
+  const p=pockets.find(x=>x.id===id);
+  if(!p)return;
+  pickColor=p.color||COLORS[0];
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">✏️ แก้ไข Pocket</div>
+    <div class="form-group"><label class="form-label">ชื่อกระเป๋า</label><input class="form-input" id="f-name" value="${p.name||''}"/></div>
+    <div class="form-group"><label class="form-label">ธนาคาร</label><select class="form-input" id="f-bank">${BANKS.map(b=>`<option${b===p.bank?' selected':''}>${b}</option>`).join('')}</select></div>
+    <div class="form-group"><label class="form-label">เป้าหมาย (บาท)</label><input class="form-input" id="f-goal" type="number" step="0.01" value="${p.goal||''}"/></div>
+    <div class="form-group"><label class="form-label">โน้ต / หมายเหตุ</label><input class="form-input" id="f-pnote" value="${p.note||''}"/></div>
+    <div class="form-group"><label class="form-label">สี</label><div class="color-row">${COLORS.map(c=>`<div class="color-swatch${c===pickColor?' on':''}" style="background:${c}" data-c="${c}" onclick="swatchClick(this)"></div>`).join('')}</div></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="updatePocket('${id}')">บันทึก</button></div>
+  </div></div>`;
+}
+
+async function updatePocket(id){
+  const name=(document.getElementById('f-name').value||'').trim();
+  const bank=document.getElementById('f-bank').value;
+  const goal=parseFloat(document.getElementById('f-goal').value)||0;
+  const note=(document.getElementById('f-pnote').value||'').trim();
+  if(!name){alert('กรุณาระบุชื่อกระเป๋า');return;}
+  await db.collection('users').doc(uid).collection('pockets').doc(id).update({name,bank,goal,note,color:pickColor});
+  closeModal();
+}
+
+function openTxModal(pid){
+  txType='income';
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">📝 บันทึกรายการ</div>
+    <div class="form-group"><label class="form-label">ประเภท</label><div class="type-row"><button class="type-opt on-i" id="tb-i" onclick="setTxType('income')">↙ รายรับ</button><button class="type-opt" id="tb-e" onclick="setTxType('expense')">↗ รายจ่าย</button></div></div>
+    <div class="form-group"><label class="form-label">จำนวนเงิน (บาท)</label><input class="form-input" id="f-amt" type="number" step="0.01" placeholder="0.00" inputmode="decimal"/></div>
+    <div class="form-group"><label class="form-label">รายละเอียด</label><input class="form-input" id="f-txnote" placeholder="เช่น โอนเข้า, ค่าเรียน..."/></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">วันที่</label><input class="form-input" id="f-d" type="number" min="1" max="31" placeholder="วันที่" value="${new Date().getDate()}" inputmode="numeric"/></div>
+      <div class="form-group"><label class="form-label">เดือน</label><select class="form-input" id="f-m">${MONTHS.map((m,i)=>`<option value="${i+1}"${i+1===viewMonth?' selected':''}>${m}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="form-label">ปี (ค.ศ.)</label><input class="form-input" id="f-y" type="number" value="${viewYear}"/></div>
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveTx('${pid}')">บันทึก</button></div>
+  </div></div>`;
+  selPocket=pid;renderPockets();
+}
+
+function closeModal(){document.getElementById('modal-container').innerHTML='';}
+function swatchClick(el){document.querySelectorAll('.color-swatch').forEach(e=>e.classList.remove('on'));el.classList.add('on');pickColor=el.dataset.c;}
+function assetSwatchClick(el){document.querySelectorAll('.asset-cswatch').forEach(e=>e.classList.remove('on'));el.classList.add('on');assetPickedColor=el.dataset.c;}
+function setTxType(t){txType=t;const bi=document.getElementById('tb-i'),be=document.getElementById('tb-e');bi.className='type-opt '+(t==='income'?'on-i':'');be.className='type-opt '+(t==='expense'?'on-e':'');}
+
+async function savePocket(){
+  const name=(document.getElementById('f-name').value||'').trim();
+  const bank=document.getElementById('f-bank').value;
+  const goal=parseFloat(document.getElementById('f-goal').value)||0;
+  const note=(document.getElementById('f-pnote').value||'').trim();
+  if(!name){alert('กรุณาระบุชื่อกระเป๋า');return;}
+  const order=pockets.length;
+  await db.collection('users').doc(uid).collection('pockets').add({name,bank,goal,note,color:pickColor,order,archived:false,createdAt:Date.now()});
+  closeModal();
+}
+
+async function saveTx(pid){
+  const amount=parseFloat(document.getElementById('f-amt').value)||0;
+  const note=(document.getElementById('f-txnote').value||'').trim();
+  const day=parseInt(document.getElementById('f-d').value)||new Date().getDate();
+  const month=parseInt(document.getElementById('f-m').value);
+  const year=parseInt(document.getElementById('f-y').value)||viewYear;
+  if(!amount){alert('กรุณาระบุจำนวนเงิน');return;}
+  await db.collection('users').doc(uid).collection('transactions').add({pocketId:pid,type:txType,amount,note,day,month,year,createdAt:Date.now()});
+  closeModal();
+}
+
+// ── Yearly Chart ──
+let yrChart,yrMode='net';
+function renderYearly(){
+  const section=document.getElementById('yearly-section');
+  const active=pockets.filter(p=>!p.archived);
+  if(!active.length){section.innerHTML='<div class="empty"><div class="empty-icon">📅</div>ยังไม่มีกระเป๋า</div>';return;}
+  const now=new Date();
+  const thisYear=now.getFullYear();
+  const lastYear=thisYear-1;
+  function getYearData(pid,yr){
+    const txs=transactions.filter(t=>t.pocketId===pid&&t.year===yr);
+    const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    return {inc,exp,net:inc-exp};
+  }
+  const data=active.map(p=>({id:p.id,name:p.name,color:p.color,last:getYearData(p.id,lastYear),curr:getYearData(p.id,thisYear)}));
+  const totLast=data.reduce((s,d)=>s+d.last.net,0);
+  const totCurr=data.reduce((s,d)=>s+d.curr.net,0);
+  const totDiff=totCurr-totLast;
+  const totPct=totLast>0?Math.round(totDiff/totLast*100):0;
+
+  let html=`<div class="yr-cards">
+    <div class="yr-card"><div class="yr-card-label">สุทธิ ${lastYear}</div><div class="yr-card-val">฿${fmt(totLast)}</div></div>
+    <div class="yr-card"><div class="yr-card-label">สุทธิ ${thisYear} (ถึงปัจจุบัน)</div><div class="yr-card-val">฿${fmt(totCurr)}</div></div>
+    <div class="yr-card"><div class="yr-card-label">เปลี่ยนแปลง</div><div class="yr-card-val" style="color:${totDiff>=0?'var(--teal)':'var(--coral)'}">${totDiff>=0?'+':''}฿${fmt(Math.abs(totDiff))} (${totPct}%)</div></div>
+  </div>
+  <div class="yr-chart-box">
+    <div class="yr-chart-title">เปรียบเทียบแต่ละ Pocket รายปี</div>
+    <div class="yr-chart-sub">${lastYear} vs ${thisYear}</div>
+    <div class="yr-toggle">
+      <button class="yr-tog ${yrMode==='net'?'on':''}" onclick="setYrMode('net',this)">สุทธิ</button>
+      <button class="yr-tog ${yrMode==='inc'?'on':''}" onclick="setYrMode('inc',this)">รายรับ</button>
+      <button class="yr-tog ${yrMode==='exp'?'on':''}" onclick="setYrMode('exp',this)">รายจ่าย</button>
+    </div>
+    <div style="position:relative;width:100%;height:260px"><canvas id="yr-canvas"></canvas></div>
+    <div class="yr-legend">
+      <div class="yr-leg"><div class="yr-leg-dot" style="background:#378ADD"></div>${lastYear}</div>
+      <div class="yr-leg"><div class="yr-leg-dot" style="background:#1D9E75"></div>${thisYear}</div>
+    </div>
+  </div>
+  <div class="yr-chart-box">
+    <div class="yr-chart-title">สรุปเปรียบเทียบแต่ละ Pocket</div>
+    <table class="yr-table">
+      <thead><tr><th>Pocket</th><th>${lastYear}</th><th>${thisYear}</th><th>เปลี่ยนแปลง</th></tr></thead>
+      <tbody>`;
+  data.forEach(d=>{
+    const diff=d.curr.net-d.last.net;
+    const pct=d.last.net>0?Math.round(diff/d.last.net*100):0;
+    const col=diff>0?'#1D9E75':diff<0?'#E24B4A':'var(--muted)';
+    const arrow=diff>0?'↑':diff<0?'↓':'-';
+    html+=`<tr><td><span class="yr-dot" style="background:${d.color}"></span>${d.name}</td><td>฿${fmt(d.last.net)}</td><td>฿${fmt(d.curr.net)}</td><td style="color:${col};font-weight:500">${arrow} ฿${fmt(Math.abs(diff))} (${Math.abs(pct)}%)</td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  section.innerHTML=html;
+
+  if(yrChart)yrChart.destroy();
+  function getModeData(m){return {d24:data.map(d=>m==='net'?d.last.net:m==='inc'?d.last.inc:d.last.exp),d25:data.map(d=>m==='net'?d.curr.net:m==='inc'?d.curr.inc:d.curr.exp)};}
+  const {d24,d25}=getModeData(yrMode);
+  yrChart=new Chart(document.getElementById('yr-canvas'),{
+    type:'bar',
+    data:{labels:data.map(d=>d.name),datasets:[
+      {label:String(lastYear),data:d24,backgroundColor:'#378ADD',borderRadius:4},
+      {label:String(thisYear),data:d25,backgroundColor:'#1D9E75',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false}},y:{ticks:{callback:v=>'฿'+(v/1000).toFixed(0)+'k'}}}}
+  });
+  window._yrData=data;window._yrLastYear=lastYear;
+}
+
+function setYrMode(m,btn){
+  yrMode=m;
+  document.querySelectorAll('.yr-tog').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  if(!yrChart||!window._yrData)return;
+  const data=window._yrData;
+  yrChart.data.datasets[0].data=data.map(d=>m==='net'?d.last.net:m==='inc'?d.last.inc:d.last.exp);
+  yrChart.data.datasets[1].data=data.map(d=>m==='net'?d.curr.net:m==='inc'?d.curr.inc:d.curr.exp);
+  yrChart.update();
+}
+// ── ASSETS MODULE ──
+const ASSET_TYPES=['หุ้นไทย','หุ้นต่างประเทศ','ทอง','Gold Now','ที่ดิน','คริปโต','กองทุนรวม','ประกัน','อื่นๆ'];
+const GOLD_TYPES=['ทอง','Gold Now'];
+const GOLD_SUBTYPES=['ทองแท่ง 96.5%','ทองรูปพรรณ 96.5%','Gold Now','ทองคำแท่ง 99.99%'];
+function isGold(t){return GOLD_TYPES.includes(t);}
+const ASSET_TYPE_COLORS={'หุ้นไทย':'#378ADD','หุ้นต่างประเทศ':'#D85A30','ทอง':'#BA7517','Gold Now':'#BA7517','ที่ดิน':'#639922','คริปโต':'#7F77DD','กองทุนรวม':'#1D9E75','ประกัน':'#D4537E','อื่นๆ':'#888780'};
+const BROKERS=['Settrade','MBKET','KGI','Finansia','InnovestX','WeBull','Dime','KS-KBank','อื่นๆ'];
+
+let assetList=[];
+let selAsset=null,assetOrderFilter='all',assetOrderType='buy',assetPickedColor=COLORS[0],editAssetId=null,curOrderAssetId=null;
+
+function getOrderStatus(o,a){
+  if(a&&isGold(a.type)){const bp=o.goldPrice>0?(o.amountPaid/o.goldPrice):0;const sp=o.sells.reduce((s,sv)=>s+(sv.sellWeight||0),0);if(sp===0)return'open';if(sp>=bp-0.0001)return'closed';return'partial';}
+  const sold=o.sells.reduce((s,sv)=>s+sv.qty,0);if(sold===0)return'open';if(sold>=o.qty)return'closed';return'partial';
+}
+function getOrderRemaining(o,a){
+  if(a&&isGold(a.type)){const bp=o.goldPrice>0?(o.amountPaid/o.goldPrice):0;const sp=o.sells.reduce((s,sv)=>s+(sv.sellWeight||0),0);return Math.max(0,bp-sp);}
+  return o.qty-o.sells.reduce((s,sv)=>s+sv.qty,0);
+}
+function getOrderRealizedPL(o,a){
+  if(a&&isGold(a.type)){const cpp=o.goldPrice>0?((o.amountPaid+(o.fee||0))/(o.amountPaid/o.goldPrice)):0;return o.sells.reduce((s,sv)=>s+(sv.goldPrice-cpp)*(sv.sellWeight||0)-sv.fee,0);}
+  return o.sells.reduce((s,sv)=>s+(sv.price-o.price)*sv.qty-sv.fee,0);
+}
+function getATotalBought(a){if(isGold(a.type))return a.assetOrders.reduce((s,o)=>s+(o.goldPrice>0?(o.amountPaid/o.goldPrice):0),0);return a.assetOrders.reduce((s,o)=>s+o.qty,0);}
+function getATotalSold(a){if(isGold(a.type))return a.assetOrders.reduce((s,o)=>s+o.sells.reduce((x,sv)=>x+(sv.sellWeight||0),0),0);return a.assetOrders.reduce((s,o)=>s+o.sells.reduce((x,sv)=>x+sv.qty,0),0);}
+function getATotalCost(a){if(isGold(a.type))return a.assetOrders.reduce((s,o)=>s+o.amountPaid+(o.fee||0),0);return a.assetOrders.reduce((s,o)=>s+o.qty*o.price+(o.fee||0),0);}
+function getARealPL(a){return a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o,a),0);}
+function getAssetMV(a){return a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*a.price,0);}
+function getAssetPL(a){
+  const openOrders=a.assetOrders.filter(o=>getOrderStatus(o)!=='closed');
+  const costBasis=openOrders.reduce((s,o)=>s+getOrderRemaining(o)*o.price,0);
+  const mv=getAssetMV(a);
+  const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
+  return mv-costBasis+realized;
+}
+function getAssetDaysDiff(d){return Math.floor((new Date()-new Date(d))/86400000);}
+
+function renderAssets(){
+  const sec=document.getElementById('assets-section');
+  if(!assetList.length){
+    sec.innerHTML=`<div class="empty"><div class="empty-icon">💼</div>ยังไม่มีทรัพย์สิน กด + เพื่อเริ่มต้น</div>`;
+    document.getElementById('asset-tx-section').innerHTML='';
+    return;
+  }
+  const byType={};
+  assetList.forEach(a=>{if(!byType[a.type])byType[a.type]=[];byType[a.type].push(a);});
+  let html='';
+  Object.keys(byType).forEach(type=>{
+    const tc=ASSET_TYPE_COLORS[type]||'#888780';
+    html+=`<div class="bank-group">
+      <div class="bank-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/></svg>
+        ${type}
+      </div>
+      <div class="pockets-grid">`;
+    byType[type].forEach(a=>{
+      const mv=getAssetMV(a),pl=getAssetPL(a);
+      const plPct=mv>0?(pl/mv*100).toFixed(1):0;
+      const pct=a.goal?Math.min(100,Math.round(mv/a.goal*100)):0;
+      const days=getAssetDaysDiff(a.updatedAt);
+      const tagCls=days<=7?'asset-tag-fresh':'asset-tag-stale';
+      const tagTxt=days===0?'วันนี้':days<=7?`${days}วันที่แล้ว`:fmt_date(a.updatedAt);
+      const recentOrders=a.assetOrders.slice(-2).reverse();
+      const sel=selAsset===a.id;
+      const totalBought=a.assetOrders.reduce((s,o)=>s+o.qty,0);
+      const totalSold=a.assetOrders.reduce((s,o)=>s+o.sells.reduce((x,sv)=>x+sv.qty,0),0);
+      const holdQtyCard=totalBought-totalSold;
+      const totalCostCard=a.assetOrders.reduce((s,o)=>s+o.qty*o.price+o.fee,0);
+      const realizedCard=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
+      const unrealizedCard=holdQtyCard*a.price-a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*o.price,0);
+      const totalPLCard=realizedCard+unrealizedCard;
+      html+=`<div class="pocket-card${sel?' active':''}" onclick="selectAsset('${a.id}')">
+        ${gold?'<div class="gold-badge">💎 โหมดทอง</div>':''}
+        <div class="pocket-name"><span class="dot" style="background:${a.color}"></span>${a.name}</div>
+        <div class="pocket-bank-tag">${type}</div>
+        ${a.note?`<div class="pocket-note-tag">📝 ${a.note}</div>`:''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px">
+          <div style="background:var(--bg);border-radius:var(--radius-sm);padding:5px 7px">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">ต้นทุนรวม</div>
+            <div style="font-size:12px;font-weight:500;color:var(--text)">฿${fmt(totalCostCard)}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius-sm);padding:5px 7px">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">ซื้อเข้าทั้งหมด</div>
+            <div style="font-size:12px;font-weight:500;color:var(--teal)">${gold?totalBought.toFixed(3):totalBought} ${gold?"บาท":"หน่วย"}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius-sm);padding:5px 7px">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">ขายออกทั้งหมด</div>
+            <div style="font-size:12px;font-weight:500;color:var(--coral)">${gold?totalSold.toFixed(3):totalSold} ${gold?"บาท":"หน่วย"}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:var(--radius-sm);padding:5px 7px">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">ถือครองอยู่</div>
+            <div style="font-size:12px;font-weight:500;color:var(--text)">${gold?holdQtyCard.toFixed(3):holdQtyCard} ${gold?"บาท":"หน่วย"}</div>
+          </div>
+        </div>
+        ${totalSold<0.0001?`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--bg);border:0.5px solid var(--border-md);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--muted)">⏱ ยังไม่มีการขาย</div><div style="font-size:11px;color:var(--muted)">—</div></div>`:realizedCard>=0?`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--teal-bg);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--teal);font-weight:500">↑ กำไรจากการขาย</div><div style="font-size:12px;font-weight:500;color:var(--teal)">+฿${fmt(realizedCard)}</div></div>`:`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 7px;background:var(--coral-bg);border-radius:var(--radius-sm);margin-bottom:8px"><div style="font-size:10px;color:var(--coral);font-weight:500">↓ ขาดทุน</div><div style="font-size:12px;font-weight:500;color:var(--coral)">-฿${fmt(Math.abs(realizedCard))}</div></div>`}
+        ${a.goal?`<div class="progress"><div class="progress-inner" style="width:${pct}%;background:${a.color}"></div></div><div class="pocket-pct">${pct}% จากเป้า ฿${fmt(a.goal)}</div>`:''}
+        <div class="asset-update-tag ${tagCls}"><i class="ti ti-clock" aria-hidden="true"></i> ${tagTxt} · ${fmt_date(a.updatedAt)}</div>
+        ${recentOrders.length?`<div class="asset-recent">${recentOrders.map(o=>`<div class="asset-recent-row"><span>Order #${o.orderNo}</span><span style="color:${getOrderStatus(o)==='closed'?'var(--muted)':getOrderStatus(o)==='partial'?'#BA7517':'var(--teal)'}">${getOrderStatus(o)==='open'?'🟢':getOrderStatus(o)==='partial'?'🟡':'⚫'} ${getOrderStatus(o)}</span></div>`).join('')}</div>`:''}
+        <div class="card-actions">
+          <button class="btn btn-sm" onclick="event.stopPropagation();openAssetOrderModal('${a.id}','buy')">+ บันทึก</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();openEditAssetModal('${a.id}')">✏️</button>
+          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();deleteAssetItem('${a.id}')">🗑</button>
+        </div>
+      </div>`;
+    });
+    html+=`<button class="add-asset-card" onclick="openAddAssetModal('${type}')">+ เพิ่ม${type}</button>
+    </div></div>`;
+  });
+  sec.innerHTML=html;
+  renderAssetTx();
+}
+
+function fmt_date(s){if(!s)return'';const d=new Date(s);return `${d.getDate()} ${MONTHS[(d.getMonth())]} ${d.getFullYear()}`;}
+
+function renderAssetTx(){
+  const sec=document.getElementById('asset-tx-section');
+  if(!selAsset){sec.innerHTML='';return;}
+  const a=assetList.find(x=>x.id===selAsset);
+  if(!a){sec.innerHTML='';return;}
+  const orders=assetOrderFilter==='all'?a.assetOrders:a.assetOrders.filter(o=>getOrderStatus(o)===assetOrderFilter);
+  const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o),0);
+  const holdQty=a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o),0);
+  const costBasis=a.assetOrders.filter(o=>getOrderStatus(o)!=='closed').reduce((s,o)=>s+getOrderRemaining(o)*o.price,0);
+  const unrealized=holdQty*a.price-costBasis;
+
+  const ordersHtml=orders.length?orders.map(o=>{
+    const status=getOrderStatus(o);
+    const rem=getOrderRemaining(o);
+    const soldQty=o.qty-rem;
+    const soldPct=Math.round(soldQty/o.qty*100);
+    const remainPct=100-soldPct;
+    const opl=getOrderRealizedPL(o);
+    const unrealO=(a.price-o.price)*rem;
+    const totalPL=opl+unrealO;
+    const totalCost=o.qty*o.price+o.fee;
+    const pillCls=status==='open'?'ord-open':status==='partial'?'ord-partial':'ord-closed';
+    const pillTxt=status==='open'?'🟢 Open':status==='partial'?'🟡 Partial':'⚫ Closed';
+
+    const sellItems=o.sells.map(sv=>{
+      const svPL=(sv.price-o.price)*sv.qty-sv.fee;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--coral-bg);color:var(--coral);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">↗</div>
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--text)">ขาย ${sv.qty} หน่วย × ฿${fmt(sv.price)}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmt_date(sv.date)} · ${sv.broker}${sv.fee>0?' · ค่าธรรมเนียม ฿'+fmt(sv.fee):''}${sv.note?' · '+sv.note:''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;font-weight:500;color:var(--coral)">฿${fmt(sv.qty*sv.price)}</div>
+          <div style="font-size:11px;font-weight:500;color:${svPL>=0?'var(--teal)':'var(--coral)'}">${svPL>=0?'+':''}฿${fmt(Math.abs(svPL))}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;${status==='closed'?'opacity:.65':''}">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-receipt" aria-hidden="true" style="font-size:14px;color:var(--muted)"></i>Order #${o.orderNo}
+          </div>
+          <div style="font-size:11px;color:var(--muted)">${fmt_date(o.date)} · ${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
+        </div>
+        <div class="ord-badge ${pillCls}">${pillTxt}</div>
+      </div>
+      <div style="padding:12px 14px">
+        <div style="display:flex;align-items:stretch;gap:6px;margin-bottom:${soldQty>0&&rem>0?10:8}px">
+          <div style="background:var(--teal-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
+            <div style="font-size:10px;color:var(--teal);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↙ ซื้อเข้า</div>
+            <div style="font-size:13px;font-weight:500;color:var(--teal)">${o.qty} หน่วย</div>
+            <div style="font-size:11px;color:var(--teal);margin-top:1px">฿${fmt(o.price)}/หน่วย</div>
+          </div>
+          ${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>
+          <div style="background:var(--coral-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
+            <div style="font-size:10px;color:var(--coral);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↗ ขายออก</div>
+            <div style="font-size:13px;font-weight:500;color:var(--coral)">${soldQty} หน่วย (${soldPct}%)</div>
+            <div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">Realized: ${opl>=0?'+':''}฿${fmt(Math.abs(opl))}</div>
+          </div>`:''}
+          ${rem>0?`${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>`:''}
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">💼 ถือครอง</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${rem} หน่วย (${remainPct}%)</div>
+            <div style="font-size:11px;color:${unrealO>=0?'var(--teal)':'var(--coral)'};margin-top:1px">Unrealized: ${unrealO>=0?'+':''}฿${fmt(Math.abs(unrealO))}</div>
+          </div>`:''}
+        </div>
+        ${soldQty>0&&rem>0?`<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>ขายออก ${soldPct}%</span><span>ถือครอง ${remainPct}%</span></div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:flex">
+            <div style="height:100%;width:${soldPct}%;background:var(--coral);border-radius:3px 0 0 3px"></div>
+            <div style="height:100%;width:${remainPct}%;background:var(--border-md);border-radius:0 3px 3px 0"></div>
+          </div>
+        </div>`:''}
+        ${o.sells.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+          <div style="font-size:11px;font-weight:500;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">รายการขาย</div>
+          ${sellItems}
+        </div>`:`<div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:4px">ยังไม่มีการขาย</div>`}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;margin-top:8px;border-top:1px solid var(--border)">
+          <div style="font-size:12px;color:var(--muted)">กำไร/ขาดทุนรวม</div>
+          <div style="font-size:13px;font-weight:500;color:${totalPL>=0?'var(--teal)':'var(--coral)'}">${totalPL>=0?'+':''}฿${fmt(Math.abs(totalPL))}</div>
+        </div>
+      </div>
+      ${status!=='closed'?`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="openAssetOrderModal('${a.id}','sell','${o.id}')">↗ บันทึกขาย Order นี้</button>
+      </div>`:`<div style="padding:8px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">✓ ขายออกหมดแล้วค่ะ</div>`}
+    </div>`;
+  }).join(''):`<div class="empty">ไม่มีรายการในหมวดนี้</div>`;
+
+  sec.innerHTML=`<div class="divider"></div>
+  <div class="asset-tx-panel">
+    <div class="tx-panel-header">
+      <div class="tx-panel-title"><span class="dot" style="background:${a.color};width:11px;height:11px"></span>${a.name} — รายการ Order</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="openAssetOrderModal('${a.id}','sell')">↗ บันทึกขาย</button>
+        <button class="btn btn-sm" onclick="openAssetOrderModal('${a.id}','buy')">+ บันทึกซื้อ</button>
+      </div>
+    </div>
+    <div class="tx-summary" style="margin-bottom:10px">
+      <div class="tx-sum"><div class="tx-sum-label">Realized P&L</div><div class="tx-sum-val ${realized>=0?'income-c':'expense-c'}">${realized>=0?'+':''}฿${fmt(Math.abs(realized))}</div></div>
+      <div class="tx-sum"><div class="tx-sum-label">Unrealized P&L</div><div class="tx-sum-val ${unrealized>=0?'income-c':'expense-c'}">${unrealized>=0?'+':''}฿${fmt(Math.abs(unrealized))}</div></div>
+      <div class="tx-sum"><div class="tx-sum-label">จำนวน Order</div><div class="tx-sum-val">${a.assetOrders.length} รายการ</div></div>
+    </div>
+    <div class="asset-filter-row">
+      <button class="asset-filter-btn${assetOrderFilter==='all'?' on':''}" onclick="setAssetFilter('all',this)">ทั้งหมด</button>
+      <button class="asset-filter-btn${assetOrderFilter==='open'?' on':''}" onclick="setAssetFilter('open',this)">🟢 Open</button>
+      <button class="asset-filter-btn${assetOrderFilter==='partial'?' on':''}" onclick="setAssetFilter('partial',this)">🟡 Partial</button>
+      <button class="asset-filter-btn${assetOrderFilter==='closed'?' on':''}" onclick="setAssetFilter('closed',this)">⚫ Closed</button>
+    </div>
+    ${ordersHtml}
+  </div>`;
+}
+
+function selectAsset(id){selAsset=selAsset===id?null:id;assetOrderFilter='all';renderAssets();if(selAsset)setTimeout(()=>document.getElementById('asset-tx-section').scrollIntoView({behavior:'smooth'}),100);}
+function setAssetFilter(f,btn){assetOrderFilter=f;document.querySelectorAll('.asset-filter-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderAssetTx();}
+
+function openAddAssetModal(defType=''){
+  editAssetId=null;
+  assetPickedColor=COLORS[0];
+  const mc=document.getElementById('modal-container');
+  mc.innerHTML=buildAssetModal('เพิ่มทรัพย์สินใหม่',defType,'','','','','','');
+}
+
+function openEditAssetModal(id){
+  editAssetId=id;
+  const a=assetList.find(x=>x.id===id);
+  assetPickedColor=a.color||COLORS[0];
+  const mc=document.getElementById('modal-container');
+  mc.innerHTML=buildAssetModal('แก้ไขทรัพย์สิน',a.type,a.name,a.qty,a.cost,a.price,a.goal||0,a.note||'',a.color||COLORS[0]);
+  document.querySelectorAll('.color-swatch').forEach(e=>{
+    e.classList.toggle('on', e.dataset.c===assetPickedColor);
+  });
+}
+
+function buildAssetModal(title,defType,name,qty,cost,price,goal,note,selColor=''){
+  const typeOpts=ASSET_TYPES.map(t=>`<option${t===defType?' selected':''}>${t}</option>`).join('');
+  const swatches=COLORS.map(c=>`<div class="color-swatch asset-cswatch${(selColor?c===selColor:c===COLORS[0])?' on':''}" style="background:${c}" data-c="${c}" onclick="assetSwatchClick(this)"></div>`).join('');assetPickedColor=selColor||COLORS[0];
+  return `<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">💼 ${title}</div>
+    <div class="form-group"><label class="form-label">ประเภท</label><select class="form-input" id="fa-type">${typeOpts}</select></div>
+    <div class="form-group"><label class="form-label">ชื่อ / ชื่อย่อ</label><input class="form-input" id="fa-name" value="${name}" placeholder="เช่น KBANK, ทองแท่ง..."/></div>
+    <div class="form-group"><label class="form-label">เป้าหมายมูลค่า (฿)</label><input class="form-input" type="number" step="0.01" id="fa-goal-simple" value="${goal}" placeholder="0.00"/></div>
+    <div class="form-group"><label class="form-label">โน้ต / หมายเหตุ</label><input class="form-input" id="fa-note" value="${note}" placeholder="จะแสดงบนการ์ด..."/></div>
+    <div class="form-group"><label class="form-label">สี</label><div class="color-row">${swatches}</div></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveAssetItem()">บันทึก</button></div>
+  </div></div>`;
+}
+
+async function saveAssetItem(){
+  const name=(document.getElementById('fa-name').value||'').trim();
+  if(!name){alert('กรุณาระบุชื่อทรัพย์สินค่ะ');return;}
+  const type=document.getElementById('fa-type').value;
+  const note=(document.getElementById('fa-note').value||'').trim();
+  const goal=parseFloat((document.getElementById('fa-goal-simple')||{}).value)||0;
+  const today=new Date().toISOString().split('T')[0];
+  const col=db.collection('users').doc(uid).collection('assetList');
+  if(editAssetId){
+    await col.doc(editAssetId).update({type,name,goal,note,color:assetPickedColor,updatedAt:today});
+  } else {
+    await col.add({type,name,qty:0,cost:0,price:0,goal,note,color:assetPickedColor,updatedAt:today,assetOrders:[],createdAt:Date.now()});
+  }
+  closeModal();
+}
+
+async function deleteAssetItem(id){
+  if(!confirm('ลบทรัพย์สินนี้?'))return;
+  await db.collection('users').doc(uid).collection('assetList').doc(id).delete();
+  if(selAsset===id)selAsset=null;
+}
+
+let curAssetSellOrderId=null;
+function openAssetOrderModal(aid,type,sellOrderId=''){
+  curOrderAssetId=aid;curAssetSellOrderId=sellOrderId||null;assetOrderType=type;
+  const a=assetList.find(x=>x.id===aid);
+  const gold=isGold(a.type);
+  const brokerOpts=BROKERS.map(b=>`<option>${b}</option>`).join('');
+  const openOrders=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed');
+  const sellOrderOpts=openOrders.map(o=>`<option value="${o.id}"${o.id===sellOrderId?' selected':''}>Order #${o.orderNo} — เหลือ ${getOrderRemaining(o,a).toFixed(gold?3:0)} ${gold?'บาท':'หน่วย'} · ทุน ${gold?'฿'+fmt(o.goldPrice)+'/บาท':'฿'+fmt(o.price)}</option>`).join('');
+  const today=new Date().toISOString().split('T')[0];
+  const goldSubOpts=GOLD_SUBTYPES.map(t=>`<option>${t}</option>`).join('');
+
+  const buyFields=gold?`
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ราคาทอง/บาท (฿)</label><input class="form-input" type="number" id="ao-gp" placeholder="70,000" oninput="calcGoldBuy()"/></div>
+      <div class="form-group"><label class="form-label">จำนวนเงินที่จ่าย (฿)</label><input class="form-input" type="number" id="ao-paid" placeholder="50,000" oninput="calcGoldBuy()"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">ประเภททอง</label><select class="form-input" id="ao-gt">${goldSubOpts}</select></div>
+    <div id="gold-buy-calc" style="display:none" class="calc-bx calc-bx-n">
+      <div class="calc-r"><span>น้ำหนักที่ได้</span><span class="cv" id="gbc-w" style="color:#BA7517">—</span></div>
+      <div class="calc-r hl"><span>ต้นทุนรวม (รวมค่ากำเหน็จ)</span><span class="cv" id="gbc-t">—</span></div>
+    </div>`:`
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">จำนวนหน่วย</label><input class="form-input" type="number" step="0.01" id="ao-qty" placeholder="100"/></div>
+      <div class="form-group"><label class="form-label">ราคา/หน่วย (฿)</label><input class="form-input" type="number" step="0.01" id="ao-price" placeholder="0.00"/></div>
+    </div>`;
+
+  const sellFields=gold?`
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ราคาขาย/บาท (฿)</label><input class="form-input" type="number" id="ao-sp" placeholder="72,000" oninput="calcGoldSell()"/></div>
+      <div class="form-group"><label class="form-label">น้ำหนักที่ขาย (บาท)</label><input class="form-input" type="number" step="0.001" id="ao-sw" placeholder="0.500" oninput="calcGoldSell()"/></div>
+    </div>
+    <div id="gold-sell-calc" style="display:none" class="calc-bx calc-bx-n">
+      <div class="calc-r"><span>รายรับ</span><span class="cv" id="gsc-inc">—</span></div>
+      <div class="calc-r"><span>ต้นทุน</span><span class="cv" id="gsc-cost">—</span></div>
+      <div class="calc-r hl"><span>กำไร/ขาดทุน</span><span class="cv" id="gsc-pl">—</span></div>
+    </div>`:`
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">จำนวนที่ขาย</label><input class="form-input" type="number" step="0.01" id="ao-qty" placeholder="100"/></div>
+      <div class="form-group"><label class="form-label">ราคาขาย/หน่วย (฿)</label><input class="form-input" type="number" step="0.01" id="ao-price" placeholder="0.00"/></div>
+    </div>`;
+
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">📝 บันทึกรายการ — ${a.name}${gold?' 💎':''}</div>
+    <div class="type-row">
+      <button class="type-opt${type==='buy'?' on-i':''}" id="ao-buy" onclick="setAssetOrderType('buy')">↙ ซื้อ / รับเข้า</button>
+      <button class="type-opt${type==='sell'?' on-e':''}" id="ao-sell" onclick="setAssetOrderType('sell')">↗ ขาย</button>
+    </div>
+    <div id="ao-sell-select" style="${type==='sell'?'':'display:none'}">
+      <div class="form-group"><label class="form-label">เลือก Order ที่จะขาย</label>
+        <select class="form-input" id="f-sell-order" onchange="onSelOrder()">${openOrders.length?'<option value="">-- เลือก Order --</option>'+sellOrderOpts:'<option value="">ไม่มี Order ที่ยัง Open</option>'}</select>
+      </div>
+      <div id="sell-order-info" style="font-size:12px;color:var(--teal);margin-bottom:8px"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Order No.</label><input class="form-input" id="ao-orderno" placeholder="เช่น 001, DCA-01..."/></div>
+      <div class="form-group"><label class="form-label">วันที่</label><input class="form-input" type="date" id="ao-date" value="${today}"/></div>
+    </div>
+    <div id="ao-buy-fields">${type==='buy'?buyFields:''}</div>
+    <div id="ao-sell-fields">${type==='sell'?sellFields:''}</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ค่าธรรมเนียม${gold?' / กำเหน็จ':''} (฿)</label><input class="form-input" type="number" step="0.01" id="ao-fee" value="0" oninput="${gold?'calcGoldBuy();calcGoldSell()':''}"/></div>
+      <div class="form-group"><label class="form-label">โบรกเกอร์</label><select class="form-input" id="ao-broker">${brokerOpts}</select></div>
+    </div>
+    <div class="form-group"><label class="form-label">หมายเหตุ</label><input class="form-input" id="ao-note" placeholder="เช่น DCA, ทำกำไร..."/></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveAssetOrder()">บันทึก</button></div>
+  </div></div>`;
+
+  window._goldMode=gold;
+  window._goldBuyFields=buyFields;
+  window._goldSellFields=sellFields;
+  if(sellOrderId)setTimeout(()=>onSelOrder(),50);
+}
+
+function onSelOrder(){
+  const a=assetList.find(x=>x.id===curOrderAssetId);
+  const gold=isGold(a.type);
+  const oid=document.getElementById('f-sell-order')?.value;
+  const info=document.getElementById('sell-order-info');
+  if(!oid||!info)return;
+  const o=a.assetOrders.find(x=>x.id===oid);if(!o)return;
+  const rem=getOrderRemaining(o,a);
+  if(gold){const cpp=(o.amountPaid+(o.fee||0))/(o.goldPrice>0?o.amountPaid/o.goldPrice:1);info.textContent=`เหลือ ${rem.toFixed(3)} บาท · ทุน ฿${fmt(cpp)}/บาท`;}
+  else info.textContent=`เหลือ ${rem} หน่วย · ทุน ฿${fmt(o.price)}/หน่วย`;
+  if(gold)calcGoldSell();
+}
+
+function calcGoldBuy(){
+  const gp=parseFloat(document.getElementById('ao-gp')?.value)||0;
+  const paid=parseFloat(document.getElementById('ao-paid')?.value)||0;
+  const fee=parseFloat(document.getElementById('ao-fee')?.value)||0;
+  const calc=document.getElementById('gold-buy-calc');if(!calc)return;
+  if(gp>0&&paid>0){calc.style.display='block';document.getElementById('gbc-w').textContent=(paid/gp).toFixed(4)+' บาททอง';document.getElementById('gbc-t').textContent='฿'+fmt(paid+fee);}
+  else calc.style.display='none';
+}
+
+function calcGoldSell(){
+  const sp=parseFloat(document.getElementById('ao-sp')?.value)||0;
+  const sw=parseFloat(document.getElementById('ao-sw')?.value)||0;
+  const fee=parseFloat(document.getElementById('ao-fee')?.value)||0;
+  const calc=document.getElementById('gold-sell-calc');if(!calc)return;
+  const oid=document.getElementById('f-sell-order')?.value;
+  const a=assetList.find(x=>x.id===curOrderAssetId);
+  const o=a?.assetOrders.find(x=>x.id===oid);
+  if(!sp||!sw||!o){calc.style.display='none';return;}
+  const cpp=(o.amountPaid+(o.fee||0))/(o.goldPrice>0?o.amountPaid/o.goldPrice:1);
+  const inc=sp*sw,cost=cpp*sw,pl=inc-cost-fee;
+  calc.style.display='block';
+  document.getElementById('gsc-inc').textContent='฿'+fmt(inc);
+  document.getElementById('gsc-cost').textContent='฿'+fmt(cost);
+  const plEl=document.getElementById('gsc-pl');
+  plEl.textContent=(pl>=0?'+':'')+'฿'+fmt(Math.abs(pl));
+  plEl.className='cv '+(pl>=0?'income-c':'expense-c');
+  calc.className='calc-bx '+(pl>=0?'calc-bx-p':'calc-bx-l');
+}
+
+
+function setAssetOrderType(t){
+  assetOrderType=t;
+  document.getElementById('ao-buy').className='type-opt'+(t==='buy'?' on-i':'');
+  document.getElementById('ao-sell').className='type-opt'+(t==='sell'?' on-e':'');
+  document.getElementById('ao-sell-select').style.display=t==='sell'?'block':'none';
+}
+
+async function saveAssetOrder(){
+  const orderNo=(document.getElementById('ao-orderno').value||'').trim();
+  const fee=parseFloat(document.getElementById('ao-fee').value)||0;
+  const date=document.getElementById('ao-date').value;
+  const broker=document.getElementById('ao-broker').value;
+  const note=(document.getElementById('ao-note').value||'').trim();
+  if(!orderNo){alert('กรุณาระบุ Order No. ค่ะ');return;}
+  const a=assetList.find(x=>x.id===curOrderAssetId);
+  const gold=isGold(a.type);
+  const col=db.collection('users').doc(uid).collection('assetList');
+  const today=new Date().toISOString().split('T')[0];
+  if(assetOrderType==='buy'){
+    let newOrder;
+    if(gold){
+      const gp=parseFloat(document.getElementById('ao-gp')?.value)||0;
+      const paid=parseFloat(document.getElementById('ao-paid')?.value)||0;
+      const gt=document.getElementById('ao-gt')?.value||'';
+      if(!gp||!paid){alert('กรุณาระบุราคาทองและจำนวนเงินที่จ่ายค่ะ');return;}
+      newOrder={id:'o'+Date.now(),orderNo,date,goldPrice:gp,amountPaid:paid,fee,broker,note,goldType:gt,sells:[]};
+    } else {
+      const qty=parseFloat(document.getElementById('ao-qty')?.value)||0;
+      const price=parseFloat(document.getElementById('ao-price')?.value)||0;
+      if(!qty||!price){alert('กรุณาระบุจำนวนและราคาค่ะ');return;}
+      newOrder={id:'o'+Date.now(),orderNo,date,qty,price,fee,broker,note,sells:[]};
+    }
+    const newOrders=[...a.assetOrders,newOrder];
+    await col.doc(curOrderAssetId).update({assetOrders:newOrders,updatedAt:today});
+  } else {
+    const oid=document.getElementById('f-sell-order')?.value;
+    if(!oid){alert('กรุณาเลือก Order ที่จะขายค่ะ');return;}
+    const o=a.assetOrders.find(x=>x.id===oid);
+    let newSell;
+    if(gold){
+      const sp=parseFloat(document.getElementById('ao-sp')?.value)||0;
+      const sw=parseFloat(document.getElementById('ao-sw')?.value)||0;
+      if(!sp||!sw){alert('กรุณาระบุราคาขายและน้ำหนักค่ะ');return;}
+      if(sw>getOrderRemaining(o,a)+0.001){alert(`ขายได้ไม่เกิน ${getOrderRemaining(o,a).toFixed(3)} บาทค่ะ`);return;}
+      newSell={goldPrice:sp,sellWeight:sw,fee,date,broker,note,orderNo};
+    } else {
+      const qty=parseFloat(document.getElementById('ao-qty')?.value)||0;
+      const price=parseFloat(document.getElementById('ao-price')?.value)||0;
+      if(!qty||!price){alert('กรุณาระบุจำนวนและราคาค่ะ');return;}
+      if(qty>getOrderRemaining(o,a)){alert(`ขายได้ไม่เกิน ${getOrderRemaining(o,a)} หน่วยค่ะ`);return;}
+      newSell={qty,price,fee,date,broker,note,orderNo};
+    }
+    const updatedOrders=a.assetOrders.map(ord=>{
+      if(ord.id!==oid)return ord;
+      return {...ord,sells:[...ord.sells,newSell]};
+    });
+    await col.doc(curOrderAssetId).update({assetOrders:updatedOrders,updatedAt:today});
+  }
+  closeModal();
+}
+
+</script>
+</body>
+</html>
