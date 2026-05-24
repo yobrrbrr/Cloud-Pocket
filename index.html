@@ -1162,12 +1162,17 @@ async function saveAssetItem(){
   const today=new Date().toISOString().split('T')[0];
   const col=db.collection('users').doc(uid).collection('assetList');
   if(editAssetId){
-    await col.doc(editAssetId).update({type,name,goal,note,color:assetPickedColor,updatedAt:today});
+    const a=assetList.find(x=>x.id===editAssetId);
+    if(a)Object.assign(a,{type,name,goal,note,color:assetPickedColor,updatedAt:today});
+    col.doc(editAssetId).update({type,name,goal,note,color:assetPickedColor,updatedAt:today});
   } else {
-    await col.add({type,name,qty:0,cost:0,price:0,goal,note,color:assetPickedColor,updatedAt:today,assetOrders:[],createdAt:Date.now()});
+    const newId='aa'+Date.now();
+    const newAsset={id:newId,type,name,qty:0,cost:0,price:0,goal,note,color:assetPickedColor,updatedAt:today,assetOrders:[],createdAt:Date.now()};
+    assetList.push(newAsset);
+    col.add({type,name,qty:0,cost:0,price:0,goal,note,color:assetPickedColor,updatedAt:today,assetOrders:[],createdAt:Date.now()});
   }
   closeModal();
-  if(curSec==='assets')setTimeout(()=>renderAssets(),500);
+  renderAssets();
 }
 
 async function deleteAssetItem(id){
