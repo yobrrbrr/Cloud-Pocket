@@ -1061,7 +1061,11 @@ function renderAssetTx(){
   const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o,a),0);
   const holdQty=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a),0);
   const costBasis=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a)*o.price,0);
-  const unrealized=holdQty*a.price-costBasis;
+  const unrealized=isGold(a.type)
+    ?a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>{
+        const rem=getOrderRemaining(o,a);const totalG=goldBuyGrams(o);const totalC=o.amountPaid+(o.fee||0);
+        const remC=totalG>0?totalC*(rem/totalG):0;return s+(a.price>0?a.price*rem/GOLD_GRAM-remC:0);},0)
+    :holdQty*a.price-costBasis;
 
   const gold=isGold(a.type);
   const unitLabel=gold?'กรัม':'หน่วย';
@@ -1073,7 +1077,9 @@ function renderAssetTx(){
     const soldPct=bought>0?Math.round(soldQty/bought*100):0;
     const remainPct=100-soldPct;
     const opl=getOrderRealizedPL(o,a);
-    const unrealO=gold?0:(a.price-o.price)*rem;
+    const totalGrams=goldBuyGrams(o);
+    const remC=totalGrams>0?(o.amountPaid+(o.fee||0))*(rem/totalGrams):0;
+    const unrealO=gold?(a.price>0?a.price*rem/GOLD_GRAM-remC:0):(a.price-o.price)*rem;
     const totalPL=opl+unrealO;
     const totalCost=gold?(o.amountPaid+(o.fee||0)):o.qty*o.price+(o.fee||0);
     const pillCls=status==='open'?'ord-open':status==='partial'?'ord-partial':'ord-closed';
@@ -1148,10 +1154,12 @@ function renderAssetTx(){
     <div class="tx-panel-header">
       <div class="tx-panel-title"><span class="dot" style="background:${a.color};width:11px;height:11px"></span>${a.name} — รายการ Order</div>
       <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="openUpdatePriceModal('${a.id}')">💰 อัปเดตราคา</button>
         <button class="btn btn-sm" style="background:var(--teal);color:#fff;border-color:var(--teal)" onclick="openAssetOrderModal('${a.id}','buy')">+ บันทึกซื้อ</button>
         <button class="btn btn-sm" style="background:var(--coral);color:#fff;border-color:var(--coral)" onclick="openAssetOrderModal('${a.id}','sell')">↗ บันทึกขาย</button>
       </div>
     </div>
+    ${a.price>0&&isGold(a.type)?`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">💰 ราคาปัจจุบัน: <span style="font-weight:600;color:var(--text)">฿${fmt(a.price)}/บาท</span></div>`:''}
     <div class="tx-summary" style="margin-bottom:10px">
       <div class="tx-sum"><div class="tx-sum-label">Realized P&L</div><div class="tx-sum-val ${realized>=0?'income-c':'expense-c'}">${realized>=0?'+':''}฿${fmt(Math.abs(realized))}</div></div>
       <div class="tx-sum"><div class="tx-sum-label">Unrealized P&L</div><div class="tx-sum-val ${unrealized>=0?'income-c':'expense-c'}">${unrealized>=0?'+':''}฿${fmt(Math.abs(unrealized))}</div></div>
@@ -1169,6 +1177,33 @@ function renderAssetTx(){
 
 function selectAsset(id){selAsset=selAsset===id?null:id;assetOrderFilter='all';renderAssets();if(selAsset)setTimeout(()=>document.getElementById('asset-tx-section').scrollIntoView({behavior:'smooth'}),100);}
 function setAssetFilter(f,btn){assetOrderFilter=f;document.querySelectorAll('.asset-filter-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderAssetTx();}
+
+function openUpdatePriceModal(aid){
+  const a=assetList.find(x=>x.id===aid);
+  const gold=isGold(a.type);
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">💰 อัปเดตราคาปัจจุบัน — ${a.name}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">ราคานี้ใช้คำนวณ Unrealized P&L ของทุก Order ที่ยังถืออยู่ บันทึกลง Firebase ซิงค์ทุก device</div>
+    <div class="form-group">
+      <label class="form-label">ราคาปัจจุบัน (฿/${gold?'บาทน้ำหนัก':'หน่วย'})</label>
+      <input class="form-input" type="number" step="0.01" id="up-price" value="${a.price||''}" placeholder="${gold?'เช่น 82,000':'เช่น 150.00'}"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveAssetPrice('${aid}')">อัปเดต</button>
+    </div>
+  </div></div>`;
+}
+
+async function saveAssetPrice(aid){
+  const price=parseFloat(document.getElementById('up-price').value)||0;
+  if(!price){alert('กรุณาระบุราคาค่ะ');return;}
+  const today=new Date().toISOString().split('T')[0];
+  const a=assetList.find(x=>x.id===aid);
+  if(a)a.price=price;
+  await db.collection('users').doc(uid).collection('assetList').doc(aid).update({price,updatedAt:today});
+  closeModal();
+}
 
 function openAddAssetModal(defType=''){
   editAssetId=null;
