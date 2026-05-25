@@ -1100,6 +1100,7 @@ function _renderOrderPanel(a,sec){
         const remC=totalG>0?totalC*(rem/totalG):0;return s+(a.price>0?a.price*rem/GOLD_GRAM-remC:0);},0)
     :holdQty*a.price-costBasis;
 
+  const totalDividend=isGold(a.type)?0:a.assetOrders.reduce((s,o)=>s+(o.dividends||[]).reduce((x,d)=>x+d.total,0),0);
   const gold=isGold(a.type);
   const unitLabel=gold?'กรัม':'หน่วย';
   const ordersHtml=orders.length?orders.map(o=>{
@@ -1118,31 +1119,35 @@ function _renderOrderPanel(a,sec){
     const pillCls=status==='open'?'ord-open':status==='partial'?'ord-partial':'ord-closed';
     const pillTxt=status==='open'?'🟢 Open':status==='partial'?'🟡 Partial':'⚫ Closed';
 
-    const sellItems=o.sells.map(sv=>{
-      const svPL=gold?(sv.goldPrice-((o.amountPaid+(o.fee||0))/(o.goldPrice>0?o.amountPaid/o.goldPrice:1)))*(sv.sellWeight||0)-sv.fee:(sv.price-o.price)*sv.qty-sv.fee;
-      const svQty=gold?(sv.sellWeight||0).toFixed(4):sv.qty;
-      const svPr=gold?sv.goldPrice:sv.price;
-      const svAmt=gold?(sv.goldPrice*(sv.sellWeight||0)):sv.qty*sv.price;
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
-        <div style="width:24px;height:24px;border-radius:50%;background:var(--coral-bg);color:var(--coral);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">↗</div>
-        <div style="flex:1">
-          <div style="font-size:12px;color:var(--text)">${sv.orderNo?`<span style="color:var(--muted);font-weight:500">Order #${sv.orderNo}</span> · `:''}ขาย ${svQty} ${unitLabel} × ฿${fmt(svPr)}${gold?'/บาท':''}</div>
-          <div style="font-size:11px;color:var(--muted)">${fmtDate(sv.date)} · ${sv.broker||''}${sv.fee>0?' · ค่าธรรมเนียม ฿'+fmt(sv.fee):''}${sv.note?' · '+sv.note:''}</div>
+    const divs=o.dividends||[];
+    const totalDiv=divs.reduce((s,d)=>s+d.total,0);
+    const divHtml=!gold&&divs.length?`
+      <div style="border-top:1px solid var(--border);padding:10px 14px">
+        <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">ปันผลสะสม</div>
+        ${divs.map(d=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid var(--border)">
+          <div>
+            <div style="font-size:12px;color:var(--text)">${d.note||'ปันผล'}</div>
+            <div style="font-size:11px;color:var(--muted)">${fmtDate(d.date)} · ฿${fmt(d.ratePerUnit)}/หน่วย × ${d.qty}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:13px;font-weight:500;color:#BA7517">+฿${fmt(d.total)}</div>
+            <button class="btn-ghost" onclick="deleteDividend('${a.id}','${o.id}','${d.id}')">✕</button>
+          </div>
+        </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding-top:6px;margin-top:2px">
+          <div style="font-size:11px;color:var(--muted)">รวม ${divs.length} ครั้ง</div>
+          <div style="font-size:13px;font-weight:500;color:#BA7517">+฿${fmt(totalDiv)}</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:12px;font-weight:500;color:var(--coral)">฿${fmt(svAmt)}</div>
-          <div style="font-size:11px;font-weight:500;color:${svPL>=0?'var(--teal)':'var(--coral)'}">${svPL>=0?'+':''}฿${fmt(Math.abs(svPL))}</div>
-        </div>
-      </div>`;
-    }).join('');
+      </div>`:'';
 
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;${status==='closed'?'opacity:.65':''}">
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px;${status==='closed'?'opacity:.65':''}">
       <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)">
         <div style="flex:1">
           <div style="font-size:12px;color:var(--muted);margin-bottom:2px">${fmtDate(o.date)} · <span style="font-weight:600;color:var(--text)">Order #${o.orderNo}</span> <span style="font-size:11px;color:var(--teal)">↙ ซื้อ</span></div>
           ${o.sells.map(sv=>`<div style="font-size:12px;color:var(--muted);margin-bottom:2px">${fmtDate(sv.date)} · <span style="font-weight:600;color:var(--text)">Order #${sv.orderNo||'—'}</span> <span style="font-size:11px;color:var(--coral)">↗ ขาย</span></div>`).join('')}
           <div style="font-size:11px;color:var(--muted)">${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
           ${opl!==0?`<div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">${opl>=0?'กำไร +':'ขาดทุน '}฿${fmt(Math.abs(opl))}</div>`:''}
+          ${!gold&&totalDiv>0?`<div style="font-size:11px;color:#BA7517;margin-top:1px">ปันผลสะสม: +฿${fmt(totalDiv)}</div>`:''}
         </div>
         <div class="ord-badge ${pillCls}">${pillTxt}</div>
       </div>
@@ -1176,9 +1181,11 @@ function _renderOrderPanel(a,sec){
           </div>
         </div>`:''}
       </div>
-      ${status!=='closed'?`<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
-        <button class="btn btn-sm" onclick="openAssetOrderModal('${a.id}','sell','${o.id}')">↗ บันทึกขาย Order นี้</button>
-      </div>`:`<div style="padding:8px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">✓ ขายออกหมดแล้วค่ะ</div>`}
+      ${divHtml}
+      <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px">
+        ${!gold?`<button class="btn btn-sm" style="background:#FAEEDA;color:#BA7517;border-color:#BA7517" onclick="openDividendModal('${a.id}','${o.id}')">💰 บันทึกปันผล</button>`:''}
+        ${status!=='closed'?`<button class="btn btn-sm" onclick="openAssetOrderModal('${a.id}','sell','${o.id}')">↗ บันทึกขาย Order นี้</button>`:`<span style="font-size:11px;color:var(--muted)">✓ ขายออกหมดแล้วค่ะ</span>`}
+      </div>
     </div>`;
   }).join(''):`<div class="empty">ไม่มีรายการในหมวดนี้</div>`;
 
@@ -1196,7 +1203,7 @@ function _renderOrderPanel(a,sec){
     <div class="tx-summary" style="margin-bottom:10px">
       <div class="tx-sum"><div class="tx-sum-label">กำไร/ขาดทุนจากการขาย</div><div class="tx-sum-val ${realized>=0?'income-c':'expense-c'}">${realized>=0?'+':''}฿${fmt(Math.abs(realized))}</div></div>
       <div class="tx-sum"><div class="tx-sum-label">กำไร/ขาดทุนจากราคาปัจจุบัน(ในพอร์ต)</div><div class="tx-sum-val ${unrealized>=0?'income-c':'expense-c'}">${unrealized>=0?'+':''}฿${fmt(Math.abs(unrealized))}</div></div>
-      <div class="tx-sum"><div class="tx-sum-label">จำนวน Order</div><div class="tx-sum-val">${a.assetOrders.length} รายการ</div></div>
+      ${!isGold(a.type)?`<div class="tx-sum"><div class="tx-sum-label">ปันผลสะสม</div><div class="tx-sum-val" style="color:#BA7517">${totalDividend>0?'+':''}฿${fmt(totalDividend)}</div></div>`:`<div class="tx-sum"><div class="tx-sum-label">จำนวน Order</div><div class="tx-sum-val">${a.assetOrders.length} รายการ</div></div>`}
     </div>
     <div class="asset-filter-row">
       <button class="asset-filter-btn${assetOrderFilter==='all'?' on':''}" onclick="setAssetFilter('all',this)">ทั้งหมด</button>
@@ -1235,6 +1242,65 @@ function renderAssetTxInline(){
 function renderAssetTx(){
   const sec=document.getElementById('asset-tx-section');
   if(sec)sec.innerHTML='';
+}
+
+function openDividendModal(aid,oid){
+  const a=assetList.find(x=>x.id===aid);
+  const o=a?.assetOrders.find(x=>x.id===oid);
+  if(!o)return;
+  const today=new Date().toISOString().split('T')[0];
+  const rem=getOrderRemaining(o,a);
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">💰 บันทึกเงินปันผล — Order #${o.orderNo}</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">วันที่รับปันผล</label><input class="form-input" type="date" id="dv-date" value="${today}"/></div>
+      <div class="form-group"><label class="form-label">฿/หน่วย</label><input class="form-input" type="number" step="0.01" id="dv-rate" placeholder="1.50" oninput="calcDiv(${rem})"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">จำนวนหน่วยที่ถือ</label><input class="form-input" type="number" id="dv-qty" value="${rem}" oninput="calcDiv(${rem})"/></div>
+    <div id="dv-calc" style="display:none" class="calc-bx calc-bx-n">
+      <div class="calc-r hl"><span>รวมเงินปันผล</span><span class="cv" id="dv-total" style="color:#BA7517">—</span></div>
+    </div>
+    <div class="form-group"><label class="form-label">หมายเหตุ (ไม่บังคับ)</label><input class="form-input" id="dv-note" placeholder="เช่น ปันผล ครั้งที่ 1/2026"/></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveDividend('${aid}','${oid}')">บันทึก</button></div>
+  </div></div>`;
+}
+
+function calcDiv(maxQty){
+  const rate=parseFloat(document.getElementById('dv-rate')?.value)||0;
+  const qty=parseFloat(document.getElementById('dv-qty')?.value)||0;
+  const calc=document.getElementById('dv-calc');
+  if(!calc)return;
+  if(rate>0&&qty>0){
+    calc.style.display='block';
+    document.getElementById('dv-total').textContent='฿'+fmt(rate*qty);
+  } else calc.style.display='none';
+}
+
+async function saveDividend(aid,oid){
+  const date=document.getElementById('dv-date').value;
+  const rate=parseFloat(document.getElementById('dv-rate').value)||0;
+  const qty=parseFloat(document.getElementById('dv-qty').value)||0;
+  const note=(document.getElementById('dv-note').value||'').trim();
+  if(!rate||!qty){alert('กรุณาระบุ ฿/หน่วย และจำนวนหน่วยค่ะ');return;}
+  const total=parseFloat((rate*qty).toFixed(2));
+  const a=assetList.find(x=>x.id===aid);
+  const newDiv={id:'dv'+Date.now(),date,ratePerUnit:rate,qty,total,note};
+  const updatedOrders=a.assetOrders.map(o=>{
+    if(o.id!==oid)return o;
+    return {...o,dividends:[...(o.dividends||[]),newDiv]};
+  });
+  await db.collection('users').doc(uid).collection('assetList').doc(aid).update({assetOrders:updatedOrders});
+  closeModal();
+}
+
+async function deleteDividend(aid,oid,dvid){
+  if(!confirm('ลบรายการปันผลนี้?'))return;
+  const a=assetList.find(x=>x.id===aid);
+  const updatedOrders=a.assetOrders.map(o=>{
+    if(o.id!==oid)return o;
+    return {...o,dividends:(o.dividends||[]).filter(d=>d.id!==dvid)};
+  });
+  await db.collection('users').doc(uid).collection('assetList').doc(aid).update({assetOrders:updatedOrders});
 }
 
 function openUpdatePriceModal(aid){
