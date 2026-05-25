@@ -1164,6 +1164,7 @@ function _renderOrderPanel(a,sec){
             <div style="font-size:10px;color:var(--coral);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↗ ขายออก</div>
             <div style="font-size:13px;font-weight:500;color:var(--coral)">${gold?soldQty.toFixed(4):soldQty} ${unitLabel} (${soldPct}%)</div>
             ${gold&&o.sells.length?`<div style="font-size:11px;color:var(--coral);margin-top:1px">฿${fmt(o.sells[o.sells.length-1].goldPrice)}/บาท</div>`:''}
+            ${!gold&&o.sells.length?`<div style="font-size:11px;color:var(--coral);margin-top:1px">฿${fmt(o.sells[o.sells.length-1].price)}/หน่วย</div>`:''}
             <div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">กำไร: ${opl>=0?'+':''}฿${fmt(Math.abs(opl))}</div>
           </div>`:''}
           ${rem>0.0001&&status!=='closed'?`${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>`:''}
