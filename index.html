@@ -1325,6 +1325,8 @@ async function toggleArchiveAsset(id,isArchived){
   if(selAsset===id&&!isArchived)selAsset=null;
   renderAssets();
 }
+
+async function deleteAssetItem(id){
   if(!confirm('ลบทรัพย์สินนี้?'))return;
   await db.collection('users').doc(uid).collection('assetList').doc(id).delete();
   if(selAsset===id)selAsset=null;
