@@ -1001,7 +1001,7 @@ function renderAssets(){
     return;
   }
   const archivedAssets=assetList.filter(a=>a.archived);
-  const visibleAssets=showArchivedAssets?assetList:assetList.filter(a=>!a.archived);
+  const visibleAssets=(showArchivedAssets?assetList:assetList.filter(a=>!a.archived)).slice().sort((a,b)=>(a.order??0)-(b.order??0));
   const byType={};
   visibleAssets.forEach(a=>{if(!byType[a.type])byType[a.type]=[];byType[a.type].push(a);});
   let html='';
@@ -1032,7 +1032,14 @@ function renderAssets(){
       const tagTxt=days===0?'วันนี้':days<=7?`${days}วันที่แล้ว`:fmtDate(a.updatedAt);
       const recentOrders=a.assetOrders.slice(-2).reverse();
       const sel=selAsset===a.id;
-      html+=`<div class="pocket-card${sel?' active':''}${a.archived?' archived':''}" onclick="selectAsset('${a.id}')">
+      html+=`<div class="pocket-card${sel?' active':''}${a.archived?' archived':''}" onclick="selectAsset('${a.id}')"
+        draggable="true"
+        ondragstart="dragStartAsset(event,'${a.id}')"
+        ondragover="dragOverAsset(event)"
+        ondrop="dragDropAsset(event,'${a.id}')"
+        ondragleave="dragLeaveAsset(event)"
+        ondragend="dragEndAsset(event)">
+        <span class="drag-handle" title="ลากเพื่อจัดเรียง">⠿</span>
         ${gold?'<div class="gold-badge">💎 โหมดทอง</div>':''}
         ${a.archived?'<div class="badge-archived">📦 archived</div>':''}
         <div class="pocket-name"><span class="dot" style="background:${a.color}"></span>${a.name}</div>
@@ -1316,7 +1323,28 @@ async function saveAssetItem(){
   renderAssets();
 }
 
-function toggleShowArchivedAssets(){showArchivedAssets=!showArchivedAssets;renderAssets();}
+// Asset Drag & Drop
+let dragSrcAssetId=null;
+function dragStartAsset(e,id){dragSrcAssetId=id;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
+function dragOverAsset(e){e.preventDefault();e.currentTarget.classList.add('drag-over');e.dataTransfer.dropEffect='move';}
+function dragLeaveAsset(e){e.currentTarget.classList.remove('drag-over');}
+function dragEndAsset(e){e.currentTarget.classList.remove('dragging');}
+async function dragDropAsset(e,targetId){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(!dragSrcAssetId||dragSrcAssetId===targetId)return;
+  const srcIdx=assetList.findIndex(a=>a.id===dragSrcAssetId);
+  const tgtIdx=assetList.findIndex(a=>a.id===targetId);
+  const reordered=[...assetList];
+  const [moved]=reordered.splice(srcIdx,1);
+  reordered.splice(tgtIdx,0,moved);
+  reordered.forEach((a,i)=>a.order=i);
+  assetList=reordered;
+  const batch=db.batch();
+  reordered.forEach((a,i)=>{batch.update(db.collection('users').doc(uid).collection('assetList').doc(a.id),{order:i});});
+  await batch.commit();
+  dragSrcAssetId=null;
+  renderAssets();
+}
 
 async function toggleArchiveAsset(id,isArchived){
   await db.collection('users').doc(uid).collection('assetList').doc(id).update({archived:!isArchived});
