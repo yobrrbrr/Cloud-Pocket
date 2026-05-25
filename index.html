@@ -1144,7 +1144,7 @@ function _renderOrderPanel(a,sec){
       <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)">
         <div style="flex:1">
           <div style="font-size:12px;color:var(--muted);margin-bottom:2px">${fmtDate(o.date)} · <span style="font-weight:600;color:var(--text)">Order #${o.orderNo}</span> <span style="font-size:11px;color:var(--teal)">↙ ซื้อ</span></div>
-          ${o.sells.map((sv,si)=>`<div style="font-size:12px;color:var(--muted);margin-bottom:2px;display:flex;align-items:center;gap:6px">${fmtDate(sv.date)} · <span style="font-weight:600;color:var(--text)">Order #${sv.orderNo||'—'}</span> <span style="font-size:11px;color:var(--coral)">↗ ขาย</span><button class="btn-ghost" style="font-size:10px;padding:1px 5px;border:0.5px solid var(--border-md);border-radius:4px;color:var(--muted)" onclick="event.stopPropagation();openEditSellModal('${a.id}','${o.id}',${si})">✏️ แก้ไข</button></div>`).join('')}
+          ${o.sells.map((sv,si)=>`<div style="font-size:12px;color:var(--muted);margin-bottom:2px;display:flex;align-items:center;gap:6px">${fmtDate(sv.date)} · <span style="font-weight:600;color:var(--text)">Order #${sv.orderNo||'—'}</span> <span style="font-size:11px;color:var(--coral)">↗ ขาย</span></div>`).join('')}
           <div style="font-size:11px;color:var(--muted)">${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
           ${opl!==0?`<div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">${opl>=0?'กำไร +':'ขาดทุน '}฿${fmt(Math.abs(opl))}</div>`:''}
           ${!gold&&totalDiv>0?`<div style="font-size:11px;color:#BA7517;margin-top:1px">ปันผลสะสม: +฿${fmt(totalDiv)}</div>`:''}
