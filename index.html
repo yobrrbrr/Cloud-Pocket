@@ -761,7 +761,8 @@ function renderChart(){
   const bankBg={KBank:'#E1F5EE',SCB:'#EEEDFE',TTB:'#E6F1FB','Make by KBank':'#FBEAF0',Krungthai:'#EAF3DE','Bangkok Bank':'#FAECE7',Krungsri:'#FAEEDA'};
   const bankTx={KBank:'#0F6E56',SCB:'#3C3489',TTB:'#185FA5','Make by KBank':'#993556',Krungthai:'#3B6D11','Bangkok Bank':'#993C1D',Krungsri:'#854F0B'};
 
-  let html=`<div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">แยกตามธนาคาร</div>
+  let html=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px">☁️ แยกตามธนาคาร</div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px">`;
 
   Object.keys(byBank).forEach(bank=>{
@@ -820,6 +821,7 @@ function renderChart(){
     data.forEach(d=>{const pct=Math.round(d.bal/total*100);html+=`<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name} ${pct}%</div>`;});
     html+=`</div>`;
   }
+  html+=`</div>`;
 
   // ── Asset overview ──
   const activeAssets=assetList.filter(a=>!a.archived);
@@ -828,8 +830,8 @@ function renderChart(){
     activeAssets.forEach(a=>{if(!byType[a.type])byType[a.type]=[];byType[a.type].push(a);});
     const totalAssetCost=activeAssets.reduce((s,a)=>s+getATotalCost(a),0);
 
-    html+=`<div style="height:1px;background:var(--border);margin:20px 0 14px"></div>
-    <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">แยกตามประเภทสินทรัพย์</div>
+    html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px">💼 แยกตามประเภทสินทรัพย์</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px">`;
 
     Object.keys(byType).forEach(type=>{
@@ -887,6 +889,7 @@ function renderChart(){
       aData.forEach(d=>{const pct=Math.round(d.val/totalAssetCost*100);html+=`<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name} ${pct}%</div>`;});
       html+=`</div>`;
     }
+    html+=`</div>`;
   }
 
   section.innerHTML=html;
@@ -1058,7 +1061,7 @@ function renderYearly(){
     <div class="yr-card"><div class="yr-card-label">เปลี่ยนแปลง</div><div class="yr-card-val" style="color:${totDiff>=0?'var(--teal)':'var(--coral)'}">${totDiff>=0?'+':''}฿${fmt(Math.abs(totDiff))} (${totPct}%)</div></div>
   </div>
   <div class="yr-chart-box">
-    <div class="yr-chart-title">เปรียบเทียบแต่ละ Pocket รายปี</div>
+    <div class="yr-chart-title">☁️ เปรียบเทียบแต่ละ Pocket รายปี</div>
     <div class="yr-chart-sub">${lastYear} vs ${thisYear}</div>
     <div class="yr-toggle">
       <button class="yr-tog ${yrMode==='net'?'on':''}" onclick="setYrMode('net',this)">สุทธิ</button>
