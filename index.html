@@ -549,10 +549,16 @@ function renderPockets(){
           <button class="btn-ghost btn-sm" onclick="event.stopPropagation();deletePocket('${p.id}')" title="ลบ">🗑</button>
         </div>
       </div>`;
+      // Insert tx panel inline right after selected pocket card
+      if(selPocket===p.id){
+        html+=`</div><div id="tx-inline"></div><div class="pockets-grid">`;
+      }
     });
     html+=`<button class="add-card" onclick="openPocketModal('${bank}')">+ เพิ่มกระเป๋า</button></div></div>`;
   });
   section.innerHTML=html;
+  document.getElementById('tx-section').innerHTML='';
+  if(selPocket)renderTxInline();
 }
 
 function toggleShowArchived(){showArchived=!showArchived;renderPockets();}
@@ -580,11 +586,21 @@ async function dragDrop(e,targetId){
   dragSrcId=null;
 }
 
+function renderTxInline(){
+  const sec=document.getElementById('tx-inline');
+  if(!sec||!selPocket)return;
+  const p=pockets.find(x=>x.id===selPocket);
+  if(!p){sec.innerHTML='';return;}
+  _buildTxHTML(p,sec);
+}
+
 function renderTx(){
   const section=document.getElementById('tx-section');
-  if(!selPocket){section.innerHTML='';return;}
-  const p=pockets.find(x=>x.id===selPocket);
-  if(!p){section.innerHTML='';return;}
+  if(section)section.innerHTML='';
+  if(selPocket)renderTxInline();
+}
+
+function _buildTxHTML(p,section){
   const txs=getMonthTx(p.id,viewMonth,viewYear);
   const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
@@ -736,7 +752,7 @@ async function doTransfer(){
   document.getElementById('t-note').value='';
 }
 
-function selectPocket(id){selPocket=selPocket===id?null:id;renderAll();if(selPocket)setTimeout(()=>document.getElementById('tx-section').scrollIntoView({behavior:'smooth'}),100);}
+function selectPocket(id){selPocket=selPocket===id?null:id;renderAll();if(selPocket)setTimeout(()=>{const el=document.getElementById('tx-inline');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},100);}
 function changeMonth(d){viewMonth+=d;if(viewMonth>12){viewMonth=1;viewYear++}if(viewMonth<1){viewMonth=12;viewYear--}renderTx();}
 
 async function deletePocket(id){
@@ -1042,21 +1058,22 @@ function renderAssets(){
           <button class="btn-ghost btn-sm" onclick="event.stopPropagation();deleteAssetItem('${a.id}')">🗑</button>
         </div>
       </div>`;
+      // Insert order list inline right after this asset card if selected
+      if(selAsset===a.id){
+        html+=`</div><div id="asset-tx-inline"></div><div class="pockets-grid">`;
+      }
     });
     html+=`<button class="add-asset-card" onclick="openAddAssetModal('${type}')">+ เพิ่ม${type}</button>
     </div></div>`;
   });
   sec.innerHTML=html;
-  renderAssetTx();
+  document.getElementById('asset-tx-section').innerHTML='';
+  if(selAsset)renderAssetTxInline();
 }
 
 function fmtDate(s){if(!s)return'';const d=new Date(s);return `${d.getDate()} ${MONTHS[(d.getMonth())]} ${d.getFullYear()}`;}
 
-function renderAssetTx(){
-  const sec=document.getElementById('asset-tx-section');
-  if(!selAsset){sec.innerHTML='';return;}
-  const a=assetList.find(x=>x.id===selAsset);
-  if(!a){sec.innerHTML='';return;}
+function _renderOrderPanel(a,sec){
   const orders=assetOrderFilter==='all'?a.assetOrders:a.assetOrders.filter(o=>getOrderStatus(o,a)===assetOrderFilter);
   const realized=a.assetOrders.reduce((s,o)=>s+getOrderRealizedPL(o,a),0);
   const holdQty=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((s,o)=>s+getOrderRemaining(o,a),0);
@@ -1175,8 +1192,34 @@ function renderAssetTx(){
   </div>`;
 }
 
-function selectAsset(id){selAsset=selAsset===id?null:id;assetOrderFilter='all';renderAssets();if(selAsset)setTimeout(()=>document.getElementById('asset-tx-section').scrollIntoView({behavior:'smooth'}),100);}
-function setAssetFilter(f,btn){assetOrderFilter=f;document.querySelectorAll('.asset-filter-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderAssetTx();}
+function selectAsset(id){
+  selAsset=selAsset===id?null:id;
+  assetOrderFilter='all';
+  renderAssets();
+  if(selAsset)setTimeout(()=>{
+    const el=document.getElementById('asset-tx-inline');
+    if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  },100);
+}
+function setAssetFilter(f,btn){
+  assetOrderFilter=f;
+  document.querySelectorAll('.asset-filter-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderAssetTxInline();
+}
+
+function renderAssetTxInline(){
+  const sec=document.getElementById('asset-tx-inline');
+  if(!sec||!selAsset)return;
+  const a=assetList.find(x=>x.id===selAsset);
+  if(!a){sec.innerHTML='';return;}
+  _renderOrderPanel(a,sec);
+}
+
+function renderAssetTx(){
+  const sec=document.getElementById('asset-tx-section');
+  if(sec)sec.innerHTML='';
+}
 
 function openUpdatePriceModal(aid){
   const a=assetList.find(x=>x.id===aid);
