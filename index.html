@@ -474,10 +474,12 @@ function showApp(user){
 
   db.collection('users').doc(uid).collection('assetList').orderBy('createdAt','asc').onSnapshot(snap=>{
     assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
+    try{renderStats();}catch(e){}
     if(curSec==='assets')renderAssets();
   },()=>{
     db.collection('users').doc(uid).collection('assetList').onSnapshot(snap=>{
       assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
+      try{renderStats();}catch(e){}
       if(curSec==='assets')renderAssets();
     });
   });
