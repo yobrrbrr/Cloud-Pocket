@@ -948,7 +948,7 @@ function addCustomBroker(name){
   }
 }
 
-let assetList=[];
+let showArchivedAssets=false;
 let selAsset=null,assetOrderFilter='all',assetOrderType='buy',assetPickedColor=COLORS[0],editAssetId=null,curOrderAssetId=null;
 
 const GOLD_GRAM=15.244; // กรัม per 1 บาทน้ำหนัก
@@ -1000,9 +1000,16 @@ function renderAssets(){
     document.getElementById('asset-tx-section').innerHTML='';
     return;
   }
+  const archivedAssets=assetList.filter(a=>a.archived);
+  const visibleAssets=showArchivedAssets?assetList:assetList.filter(a=>!a.archived);
   const byType={};
-  assetList.forEach(a=>{if(!byType[a.type])byType[a.type]=[];byType[a.type].push(a);});
+  visibleAssets.forEach(a=>{if(!byType[a.type])byType[a.type]=[];byType[a.type].push(a);});
   let html='';
+  if(archivedAssets.length){
+    html+=`<div class="archive-toggle" onclick="toggleShowArchivedAssets()">
+      ${showArchivedAssets?'🔽':'▶️'} ${showArchivedAssets?'ซ่อน':'แสดง'} ทรัพย์สินที่ archived (${archivedAssets.length})
+    </div>`;
+  }
   Object.keys(byType).forEach(type=>{
     const tc=ASSET_TYPE_COLORS[type]||'#888780';
     html+=`<div class="bank-group">
@@ -1025,8 +1032,9 @@ function renderAssets(){
       const tagTxt=days===0?'วันนี้':days<=7?`${days}วันที่แล้ว`:fmtDate(a.updatedAt);
       const recentOrders=a.assetOrders.slice(-2).reverse();
       const sel=selAsset===a.id;
-      html+=`<div class="pocket-card${sel?' active':''}" onclick="selectAsset('${a.id}')">
+      html+=`<div class="pocket-card${sel?' active':''}${a.archived?' archived':''}" onclick="selectAsset('${a.id}')">
         ${gold?'<div class="gold-badge">💎 โหมดทอง</div>':''}
+        ${a.archived?'<div class="badge-archived">📦 archived</div>':''}
         <div class="pocket-name"><span class="dot" style="background:${a.color}"></span>${a.name}</div>
         <div class="pocket-bank-tag">${type}</div>
         ${a.note?`<div class="pocket-note-tag">📝 ${a.note}</div>`:''}
@@ -1055,6 +1063,7 @@ function renderAssets(){
         <div class="card-actions">
           <button class="btn btn-sm" onclick="event.stopPropagation();openAssetOrderModal('${a.id}','buy')">+ บันทึก</button>
           <button class="btn btn-sm" onclick="event.stopPropagation();openEditAssetModal('${a.id}')">✏️</button>
+          <button class="btn-ghost btn-sm" onclick="event.stopPropagation();toggleArchiveAsset('${a.id}',${!!a.archived})" title="${a.archived?'Restore':'Archive'}">${a.archived?'📤':'📦'}</button>
           <button class="btn-ghost btn-sm" onclick="event.stopPropagation();deleteAssetItem('${a.id}')">🗑</button>
         </div>
       </div>`;
@@ -1307,7 +1316,15 @@ async function saveAssetItem(){
   renderAssets();
 }
 
-async function deleteAssetItem(id){
+function toggleShowArchivedAssets(){showArchivedAssets=!showArchivedAssets;renderAssets();}
+
+async function toggleArchiveAsset(id,isArchived){
+  await db.collection('users').doc(uid).collection('assetList').doc(id).update({archived:!isArchived});
+  const a=assetList.find(x=>x.id===id);
+  if(a)a.archived=!isArchived;
+  if(selAsset===id&&!isArchived)selAsset=null;
+  renderAssets();
+}
   if(!confirm('ลบทรัพย์สินนี้?'))return;
   await db.collection('users').doc(uid).collection('assetList').doc(id).delete();
   if(selAsset===id)selAsset=null;
