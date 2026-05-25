@@ -1019,7 +1019,7 @@ function renderYearly(){
   if(assetList.filter(a=>!a.archived).length){
     const activeAssets=assetList.filter(a=>!a.archived);
     function getAssetYearData(yr){
-      const cost=activeAssets.reduce((s,a)=>s+a.assetOrders.filter(o=>o.date&&new Date(o.date).getFullYear()===yr).reduce((x,o)=>x+o.amountPaid+(o.fee||0)+(o.qty?(o.qty*o.price+(o.fee||0)):0),0),0);
+      const cost=activeAssets.reduce((s,a)=>s+a.assetOrders.filter(o=>o.date&&new Date(o.date).getFullYear()===yr).reduce((x,o)=>x+(isGold(a.type)?(o.amountPaid+(o.fee||0)):((o.qty||0)*(o.price||0)+(o.fee||0))),0),0);
       const realized=activeAssets.reduce((s,a)=>s+a.assetOrders.reduce((x,o)=>x+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===yr).reduce((y,sv)=>{
         if(isGold(a.type)){const tg=goldBuyGrams(o);const tc=o.amountPaid+(o.fee||0);const costProp=tg>0?tc*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-costProp;}
         return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0),0);
@@ -1028,11 +1028,36 @@ function renderYearly(){
     }
     const aLast=getAssetYearData(lastYear);
     const aCurr=getAssetYearData(thisYear);
+
+    // per-asset cost data for chart
+    const assetChartData=activeAssets.map(a=>{
+      const lCost=a.assetOrders.filter(o=>o.date&&new Date(o.date).getFullYear()===lastYear).reduce((s,o)=>s+(isGold(a.type)?(o.amountPaid+(o.fee||0)):((o.qty||0)*(o.price||0)+(o.fee||0))),0);
+      const cCost=a.assetOrders.filter(o=>o.date&&new Date(o.date).getFullYear()===thisYear).reduce((s,o)=>s+(isGold(a.type)?(o.amountPaid+(o.fee||0)):((o.qty||0)*(o.price||0)+(o.fee||0))),0);
+      const lReal=a.assetOrders.reduce((s,o)=>s+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===lastYear).reduce((y,sv)=>{if(isGold(a.type)){const tg=goldBuyGrams(o);const tc2=o.amountPaid+(o.fee||0);const cp=tg>0?tc2*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-cp;}return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0);
+      const cReal=a.assetOrders.reduce((s,o)=>s+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===thisYear).reduce((y,sv)=>{if(isGold(a.type)){const tg=goldBuyGrams(o);const tc2=o.amountPaid+(o.fee||0);const cp=tg>0?tc2*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-cp;}return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0);
+      const lDiv=a.assetOrders.reduce((s,o)=>s+(o.dividends||[]).filter(d=>d.date&&new Date(d.date).getFullYear()===lastYear).reduce((y,d)=>y+d.total,0),0);
+      const cDiv=a.assetOrders.reduce((s,o)=>s+(o.dividends||[]).filter(d=>d.date&&new Date(d.date).getFullYear()===thisYear).reduce((y,d)=>y+d.total,0),0);
+      return {name:a.name,color:ASSET_TYPE_COLORS[a.type]||'#888780',lCost,cCost,lReal,cReal,lDiv,cDiv};
+    });
+
     html+=`<div class="yr-chart-box" style="margin-top:16px">
-      <div class="yr-chart-title">💼 สรุปสินทรัพย์รายปี</div>
+      <div class="yr-chart-title">💼 เปรียบเทียบแต่ละทรัพย์สินรายปี</div>
       <div class="yr-chart-sub">${lastYear} vs ${thisYear}</div>
+      <div class="yr-toggle">
+        <button class="yr-tog on" id="at-cost" onclick="setAssetYrMode('cost',this)">ต้นทุน</button>
+        <button class="yr-tog" id="at-real" onclick="setAssetYrMode('real',this)">กำไรขาย</button>
+        <button class="yr-tog" id="at-div" onclick="setAssetYrMode('div',this)">ปันผล</button>
+      </div>
+      <div style="position:relative;width:100%;height:260px"><canvas id="yr-asset-canvas"></canvas></div>
+      <div class="yr-legend">
+        <div class="yr-leg"><div class="yr-leg-dot" style="background:#378ADD"></div>${lastYear}</div>
+        <div class="yr-leg"><div class="yr-leg-dot" style="background:#1D9E75"></div>${thisYear}</div>
+      </div>
+    </div>
+    <div class="yr-chart-box">
+      <div class="yr-chart-title">สรุปเปรียบเทียบแต่ละทรัพย์สิน</div>
       <table class="yr-table">
-        <thead><tr><th>รายการ</th><th>${lastYear}</th><th>${thisYear}</th><th>เปลี่ยนแปลง</th></tr></thead>
+        <thead><tr><th>ทรัพย์สิน</th><th>${lastYear}</th><th>${thisYear}</th><th>เปลี่ยนแปลง</th></tr></thead>
         <tbody>`;
     const aRows=[
       {label:'ต้นทุนที่ลงทุน',last:aLast.cost,curr:aCurr.cost,color:'#888780'},
@@ -1048,14 +1073,17 @@ function renderYearly(){
     // per-asset rows
     activeAssets.forEach(a=>{
       const tc=ASSET_TYPE_COLORS[a.type]||'#888780';
-      const lReal=a.assetOrders.reduce((s,o)=>s+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===lastYear).reduce((y,sv)=>{if(isGold(a.type)){const tg=goldBuyGrams(o);const tc2=o.amountPaid+(o.fee||0);const cp=tg>0?tc2*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-cp;}return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0);
-      const cReal=a.assetOrders.reduce((s,o)=>s+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===thisYear).reduce((y,sv)=>{if(isGold(a.type)){const tg=goldBuyGrams(o);const tc2=o.amountPaid+(o.fee||0);const cp=tg>0?tc2*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-cp;}return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0);
-      const diff=cReal-lReal;
+      const d=assetChartData.find(x=>x.name===a.name);
+      if(!d)return;
+      const diff=d.cCost-d.lCost;
       const col=diff>0?'#1D9E75':diff<0?'#E24B4A':'var(--muted)';
       const arrow=diff>0?'↑':diff<0?'↓':'-';
-      html+=`<tr style="opacity:.85"><td style="padding-left:20px"><span class="yr-dot" style="background:${tc}"></span>${a.name}</td><td style="color:${lReal>=0?'var(--teal)':'var(--coral)'}">${lReal>=0?'+':''}฿${fmt(Math.abs(lReal))}</td><td style="color:${cReal>=0?'var(--teal)':'var(--coral)'}">${cReal>=0?'+':''}฿${fmt(Math.abs(cReal))}</td><td style="color:${col};font-weight:500">${arrow} ฿${fmt(Math.abs(diff))}</td></tr>`;
+      html+=`<tr style="opacity:.85"><td style="padding-left:20px"><span class="yr-dot" style="background:${tc}"></span>${a.name}</td><td>฿${fmt(d.lCost)}</td><td>฿${fmt(d.cCost)}</td><td style="color:${col};font-weight:500">${arrow} ฿${fmt(Math.abs(diff))}</td></tr>`;
     });
     html+=`</tbody></table></div>`;
+    window._assetChartData=assetChartData;
+    window._assetYrLastYear=lastYear;
+    window._assetYrThisYear=thisYear;
   }
 
   section.innerHTML=html;
@@ -1072,8 +1100,32 @@ function renderYearly(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false}},y:{ticks:{callback:v=>'฿'+(v/1000).toFixed(0)+'k'}}}}
   });
   window._yrData=data;window._yrLastYear=lastYear;
+  // init asset chart if canvas exists
+  if(window._assetChartData&&document.getElementById('yr-asset-canvas')){
+    if(window._yrAssetChart)window._yrAssetChart.destroy();
+    const acd=window._assetChartData;
+    window._yrAssetChart=new Chart(document.getElementById('yr-asset-canvas'),{
+      type:'bar',
+      data:{labels:acd.map(d=>d.name),datasets:[
+        {label:String(window._assetYrLastYear),data:acd.map(d=>d.lCost),backgroundColor:'#378ADD',borderRadius:4},
+        {label:String(window._assetYrThisYear),data:acd.map(d=>d.cCost),backgroundColor:'#1D9E75',borderRadius:4}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false}},y:{ticks:{callback:v=>'฿'+(v/1000).toFixed(0)+'k'}}}}
+    });
+  }
 }
 
+function setAssetYrMode(m,btn){
+  document.querySelectorAll('#at-cost,#at-real,#at-div').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  if(!window._yrAssetChart||!window._assetChartData)return;
+  const acd=window._assetChartData;
+  const mapL=m==='cost'?'lCost':m==='real'?'lReal':'lDiv';
+  const mapC=m==='cost'?'cCost':m==='real'?'cReal':'cDiv';
+  window._yrAssetChart.data.datasets[0].data=acd.map(d=>d[mapL]);
+  window._yrAssetChart.data.datasets[1].data=acd.map(d=>d[mapC]);
+  window._yrAssetChart.update();
+}
 function setYrMode(m,btn){
   yrMode=m;
   document.querySelectorAll('.yr-tog').forEach(t=>t.classList.remove('on'));
