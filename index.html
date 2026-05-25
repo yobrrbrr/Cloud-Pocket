@@ -1144,12 +1144,15 @@ function _renderOrderPanel(a,sec){
       <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)">
         <div style="flex:1">
           <div style="font-size:12px;color:var(--muted);margin-bottom:2px">${fmtDate(o.date)} · <span style="font-weight:600;color:var(--text)">Order #${o.orderNo}</span> <span style="font-size:11px;color:var(--teal)">↙ ซื้อ</span></div>
-          ${o.sells.map(sv=>`<div style="font-size:12px;color:var(--muted);margin-bottom:2px">${fmtDate(sv.date)} · <span style="font-weight:600;color:var(--text)">Order #${sv.orderNo||'—'}</span> <span style="font-size:11px;color:var(--coral)">↗ ขาย</span></div>`).join('')}
+          ${o.sells.map((sv,si)=>`<div style="font-size:12px;color:var(--muted);margin-bottom:2px;display:flex;align-items:center;gap:6px">${fmtDate(sv.date)} · <span style="font-weight:600;color:var(--text)">Order #${sv.orderNo||'—'}</span> <span style="font-size:11px;color:var(--coral)">↗ ขาย</span><button class="btn-ghost" style="font-size:10px;padding:1px 5px;border:0.5px solid var(--border-md);border-radius:4px;color:var(--muted)" onclick="event.stopPropagation();openEditSellModal('${a.id}','${o.id}',${si})">✏️ แก้ไข</button></div>`).join('')}
           <div style="font-size:11px;color:var(--muted)">${o.broker} · ต้นทุน ฿${fmt(totalCost)}</div>
           ${opl!==0?`<div style="font-size:11px;color:${opl>=0?'var(--teal)':'var(--coral)'};margin-top:1px">${opl>=0?'กำไร +':'ขาดทุน '}฿${fmt(Math.abs(opl))}</div>`:''}
           ${!gold&&totalDiv>0?`<div style="font-size:11px;color:#BA7517;margin-top:1px">ปันผลสะสม: +฿${fmt(totalDiv)}</div>`:''}
         </div>
-        <div class="ord-badge ${pillCls}">${pillTxt}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="btn-ghost" style="font-size:11px;padding:2px 6px;border:0.5px solid var(--border-md);border-radius:4px;color:var(--muted)" onclick="event.stopPropagation();openEditOrderModal('${a.id}','${o.id}')">✏️ แก้ไขซื้อ</button>
+          <div class="ord-badge ${pillCls}">${pillTxt}</div>
+        </div>
       </div>
       <div style="padding:12px 14px">
         <div style="display:flex;align-items:stretch;gap:6px;margin-bottom:${soldQty>0&&rem>0?10:8}px">
@@ -1243,6 +1246,126 @@ function renderAssetTxInline(){
 function renderAssetTx(){
   const sec=document.getElementById('asset-tx-section');
   if(sec)sec.innerHTML='';
+}
+
+function openEditOrderModal(aid,oid){
+  const a=assetList.find(x=>x.id===aid);
+  const o=a?.assetOrders.find(x=>x.id===oid);
+  if(!o)return;
+  const gold=isGold(a.type);
+  const goldSubOpts=GOLD_SUBTYPES.map(t=>`<option${t===o.goldType?' selected':''}>${t}</option>`).join('');
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">✏️ แก้ไขรายการซื้อ — Order #${o.orderNo}</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Order No.</label><input class="form-input" id="eo-orderno" value="${o.orderNo||''}"/></div>
+      <div class="form-group"><label class="form-label">วันที่</label><input class="form-input" type="date" id="eo-date" value="${o.date||''}"/></div>
+    </div>
+    ${gold?`<div class="form-row">
+      <div class="form-group"><label class="form-label">ราคาทอง/บาท (฿)</label><input class="form-input" type="number" id="eo-gp" value="${o.goldPrice||''}"/></div>
+      <div class="form-group"><label class="form-label">จำนวนเงินที่จ่าย (฿)</label><input class="form-input" type="number" id="eo-paid" value="${o.amountPaid||''}"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">ประเภททอง</label><select class="form-input" id="eo-gt">${goldSubOpts}</select></div>`:`
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">จำนวนหน่วย</label><input class="form-input" type="number" id="eo-qty" value="${o.qty||''}"/></div>
+      <div class="form-group"><label class="form-label">ราคา/หน่วย (฿)</label><input class="form-input" type="number" id="eo-price" value="${o.price||''}"/></div>
+    </div>`}
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ค่าธรรมเนียม (฿)</label><input class="form-input" type="number" id="eo-fee" value="${o.fee||0}"/></div>
+      <div class="form-group"><label class="form-label">โบรกเกอร์</label><input class="form-input" id="eo-broker" value="${o.broker||''}" list="eo-broker-dl"/><datalist id="eo-broker-dl">${JSON.parse(localStorage.getItem('cp_brokers')||'[]').map(b=>`<option value="${b}">`).join('')}</datalist></div>
+    </div>
+    <div class="form-group"><label class="form-label">หมายเหตุ</label><input class="form-input" id="eo-note" value="${o.note||''}"/></div>
+    <div class="modal-actions"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveEditOrder('${aid}','${oid}')">บันทึก</button></div>
+  </div></div>`;
+}
+
+async function saveEditOrder(aid,oid){
+  const a=assetList.find(x=>x.id===aid);
+  const gold=isGold(a.type);
+  const orderNo=(document.getElementById('eo-orderno').value||'').trim();
+  const date=document.getElementById('eo-date').value;
+  const fee=parseFloat(document.getElementById('eo-fee').value)||0;
+  const broker=(document.getElementById('eo-broker').value||'').trim();
+  const note=(document.getElementById('eo-note').value||'').trim();
+  let updates={orderNo,date,fee,broker,note};
+  if(gold){
+    updates.goldPrice=parseFloat(document.getElementById('eo-gp').value)||0;
+    updates.amountPaid=parseFloat(document.getElementById('eo-paid').value)||0;
+    updates.goldType=document.getElementById('eo-gt').value;
+  } else {
+    updates.qty=parseFloat(document.getElementById('eo-qty').value)||0;
+    updates.price=parseFloat(document.getElementById('eo-price').value)||0;
+  }
+  const updatedOrders=a.assetOrders.map(o=>o.id===oid?{...o,...updates}:o);
+  await db.collection('users').doc(uid).collection('assetList').doc(aid).update({assetOrders:updatedOrders});
+  closeModal();
+}
+
+function openEditSellModal(aid,oid,svIdx){
+  const a=assetList.find(x=>x.id===aid);
+  const o=a?.assetOrders.find(x=>x.id===oid);
+  const sv=o?.sells[svIdx];
+  if(!sv)return;
+  const gold=isGold(a.type);
+  document.getElementById('modal-container').innerHTML=`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">✏️ แก้ไขรายการขาย — Order #${sv.orderNo||o.orderNo}</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Order No. ขาย</label><input class="form-input" id="es-orderno" value="${sv.orderNo||''}"/></div>
+      <div class="form-group"><label class="form-label">วันที่</label><input class="form-input" type="date" id="es-date" value="${sv.date||''}"/></div>
+    </div>
+    ${gold?`<div class="form-row">
+      <div class="form-group"><label class="form-label">ราคาขายทอง/บาท (฿)</label><input class="form-input" type="number" id="es-gp" value="${sv.goldPrice||''}"/></div>
+      <div class="form-group"><label class="form-label">น้ำหนักที่ขาย (กรัม)</label><input class="form-input" type="number" id="es-sw" value="${sv.sellWeight||''}"/></div>
+    </div>`:`<div class="form-row">
+      <div class="form-group"><label class="form-label">จำนวนที่ขาย</label><input class="form-input" type="number" id="es-qty" value="${sv.qty||''}"/></div>
+      <div class="form-group"><label class="form-label">ราคาขาย/หน่วย (฿)</label><input class="form-input" type="number" id="es-price" value="${sv.price||''}"/></div>
+    </div>`}
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ค่าธรรมเนียม (฿)</label><input class="form-input" type="number" id="es-fee" value="${sv.fee||0}"/></div>
+      <div class="form-group"><label class="form-label">โบรกเกอร์</label><input class="form-input" id="es-broker" value="${sv.broker||''}" list="es-broker-dl"/><datalist id="es-broker-dl">${JSON.parse(localStorage.getItem('cp_brokers')||'[]').map(b=>`<option value="${b}">`).join('')}</datalist></div>
+    </div>
+    <div class="form-group"><label class="form-label">หมายเหตุ</label><input class="form-input" id="es-note" value="${sv.note||''}"/></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-ghost" style="color:var(--coral)" onclick="deleteSell('${aid}','${oid}',${svIdx})">🗑 ลบรายการขาย</button>
+      <button class="btn btn-primary" onclick="saveEditSell('${aid}','${oid}',${svIdx})">บันทึก</button>
+    </div>
+  </div></div>`;
+}
+
+async function saveEditSell(aid,oid,svIdx){
+  const a=assetList.find(x=>x.id===aid);
+  const gold=isGold(a.type);
+  const orderNo=(document.getElementById('es-orderno').value||'').trim();
+  const date=document.getElementById('es-date').value;
+  const fee=parseFloat(document.getElementById('es-fee').value)||0;
+  const broker=(document.getElementById('es-broker').value||'').trim();
+  const note=(document.getElementById('es-note').value||'').trim();
+  let updates={orderNo,date,fee,broker,note};
+  if(gold){
+    updates.goldPrice=parseFloat(document.getElementById('es-gp').value)||0;
+    updates.sellWeight=parseFloat(document.getElementById('es-sw').value)||0;
+  } else {
+    updates.qty=parseFloat(document.getElementById('es-qty').value)||0;
+    updates.price=parseFloat(document.getElementById('es-price').value)||0;
+  }
+  const updatedOrders=a.assetOrders.map(o=>{
+    if(o.id!==oid)return o;
+    const sells=o.sells.map((sv,i)=>i===svIdx?{...sv,...updates}:sv);
+    return {...o,sells};
+  });
+  await db.collection('users').doc(uid).collection('assetList').doc(aid).update({assetOrders:updatedOrders});
+  closeModal();
+}
+
+async function deleteSell(aid,oid,svIdx){
+  if(!confirm('ลบรายการขายนี้?'))return;
+  const a=assetList.find(x=>x.id===aid);
+  const updatedOrders=a.assetOrders.map(o=>{
+    if(o.id!==oid)return o;
+    return {...o,sells:o.sells.filter((_,i)=>i!==svIdx)};
+  });
+  await db.collection('users').doc(uid).collection('assetList').doc(aid).update({assetOrders:updatedOrders});
+  closeModal();
 }
 
 function openDividendModal(aid,oid){
