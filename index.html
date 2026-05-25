@@ -1516,6 +1516,7 @@ async function saveAssetItem(){
 
 // Asset Drag & Drop
 let dragSrcAssetId=null;
+function toggleShowArchivedAssets(){showArchivedAssets=!showArchivedAssets;renderAssets();}
 function dragStartAsset(e,id){dragSrcAssetId=id;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
 function dragOverAsset(e){e.preventDefault();e.currentTarget.classList.add('drag-over');e.dataTransfer.dropEffect='move';}
 function dragLeaveAsset(e){e.currentTarget.classList.remove('drag-over');}
