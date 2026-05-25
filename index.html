@@ -476,11 +476,13 @@ function showApp(user){
     assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
     try{renderStats();}catch(e){}
     if(curSec==='assets')renderAssets();
+    if(curSec==='yearly')renderYearly();
   },()=>{
     db.collection('users').doc(uid).collection('assetList').onSnapshot(snap=>{
       assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
       try{renderStats();}catch(e){}
       if(curSec==='assets')renderAssets();
+      if(curSec==='yearly')renderYearly();
     });
   });
 }
@@ -1012,6 +1014,50 @@ function renderYearly(){
     html+=`<tr><td><span class="yr-dot" style="background:${d.color}"></span>${d.name}</td><td>฿${fmt(d.last.net)}</td><td>฿${fmt(d.curr.net)}</td><td style="color:${col};font-weight:500">${arrow} ฿${fmt(Math.abs(diff))} (${Math.abs(pct)}%)</td></tr>`;
   });
   html+=`</tbody></table></div>`;
+
+  // ── Asset yearly section ──
+  if(assetList.filter(a=>!a.archived).length){
+    const activeAssets=assetList.filter(a=>!a.archived);
+    function getAssetYearData(yr){
+      const cost=activeAssets.reduce((s,a)=>s+a.assetOrders.filter(o=>o.date&&new Date(o.date).getFullYear()===yr).reduce((x,o)=>x+o.amountPaid+(o.fee||0)+(o.qty?(o.qty*o.price+(o.fee||0)):0),0),0);
+      const realized=activeAssets.reduce((s,a)=>s+a.assetOrders.reduce((x,o)=>x+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===yr).reduce((y,sv)=>{
+        if(isGold(a.type)){const tg=goldBuyGrams(o);const tc=o.amountPaid+(o.fee||0);const costProp=tg>0?tc*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-costProp;}
+        return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0),0);
+      const divs=activeAssets.reduce((s,a)=>s+a.assetOrders.reduce((x,o)=>x+(o.dividends||[]).filter(d=>d.date&&new Date(d.date).getFullYear()===yr).reduce((y,d)=>y+d.total,0),0),0);
+      return {cost,realized,divs};
+    }
+    const aLast=getAssetYearData(lastYear);
+    const aCurr=getAssetYearData(thisYear);
+    html+=`<div class="yr-chart-box" style="margin-top:16px">
+      <div class="yr-chart-title">💼 สรุปสินทรัพย์รายปี</div>
+      <div class="yr-chart-sub">${lastYear} vs ${thisYear}</div>
+      <table class="yr-table">
+        <thead><tr><th>รายการ</th><th>${lastYear}</th><th>${thisYear}</th><th>เปลี่ยนแปลง</th></tr></thead>
+        <tbody>`;
+    const aRows=[
+      {label:'ต้นทุนที่ลงทุน',last:aLast.cost,curr:aCurr.cost,color:'#888780'},
+      {label:'กำไรจากการขาย',last:aLast.realized,curr:aCurr.realized,color:'#1D9E75'},
+      {label:'ปันผลที่ได้รับ',last:aLast.divs,curr:aCurr.divs,color:'#BA7517'},
+    ];
+    aRows.forEach(r=>{
+      const diff=r.curr-r.last;
+      const col=diff>0?'#1D9E75':diff<0?'#E24B4A':'var(--muted)';
+      const arrow=diff>0?'↑':diff<0?'↓':'-';
+      html+=`<tr><td><span class="yr-dot" style="background:${r.color}"></span>${r.label}</td><td>฿${fmt(r.last)}</td><td>฿${fmt(r.curr)}</td><td style="color:${col};font-weight:500">${arrow} ฿${fmt(Math.abs(diff))}</td></tr>`;
+    });
+    // per-asset rows
+    activeAssets.forEach(a=>{
+      const tc=ASSET_TYPE_COLORS[a.type]||'#888780';
+      const lReal=a.assetOrders.reduce((s,o)=>s+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===lastYear).reduce((y,sv)=>{if(isGold(a.type)){const tg=goldBuyGrams(o);const tc2=o.amountPaid+(o.fee||0);const cp=tg>0?tc2*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-cp;}return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0);
+      const cReal=a.assetOrders.reduce((s,o)=>s+o.sells.filter(sv=>sv.date&&new Date(sv.date).getFullYear()===thisYear).reduce((y,sv)=>{if(isGold(a.type)){const tg=goldBuyGrams(o);const tc2=o.amountPaid+(o.fee||0);const cp=tg>0?tc2*(sv.sellWeight||0)/tg:0;return y+(o.goldPrice*(sv.sellWeight||0)/GOLD_GRAM)-cp;}return y+(sv.price-o.price)*sv.qty-sv.fee;},0),0);
+      const diff=cReal-lReal;
+      const col=diff>0?'#1D9E75':diff<0?'#E24B4A':'var(--muted)';
+      const arrow=diff>0?'↑':diff<0?'↓':'-';
+      html+=`<tr style="opacity:.85"><td style="padding-left:20px"><span class="yr-dot" style="background:${tc}"></span>${a.name}</td><td style="color:${lReal>=0?'var(--teal)':'var(--coral)'}">${lReal>=0?'+':''}฿${fmt(Math.abs(lReal))}</td><td style="color:${cReal>=0?'var(--teal)':'var(--coral)'}">${cReal>=0?'+':''}฿${fmt(Math.abs(cReal))}</td><td style="color:${col};font-weight:500">${arrow} ฿${fmt(Math.abs(diff))}</td></tr>`;
+    });
+    html+=`</tbody></table></div>`;
+  }
+
   section.innerHTML=html;
 
   if(yrChart)yrChart.destroy();
