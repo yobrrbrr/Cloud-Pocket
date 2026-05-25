@@ -1163,7 +1163,8 @@ function _renderOrderPanel(a,sec){
             ${gold?`<div style="font-size:10px;color:var(--teal);margin-top:1px">จ่าย ฿${fmt(o.amountPaid)}</div>`:''}
           </div>
           ${soldQty>0?`<div style="display:flex;align-items:center;color:var(--muted);font-size:14px;flex-shrink:0">→</div>
-          <div style="background:var(--coral-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1">
+          <div style="background:var(--coral-bg);border-radius:var(--radius-sm);padding:8px 10px;flex:1;position:relative">
+            <button style="position:absolute;top:6px;right:6px;font-size:10px;padding:1px 5px;border:0.5px solid var(--coral);border-radius:4px;background:transparent;color:var(--coral);cursor:pointer" onclick="event.stopPropagation();openEditSellModal('${a.id}','${o.id}',${o.sells.length-1})">✏️</button>
             <div style="font-size:10px;color:var(--coral);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:500">↗ ขายออก</div>
             <div style="font-size:13px;font-weight:500;color:var(--coral)">${gold?soldQty.toFixed(4):soldQty} ${unitLabel} (${soldPct}%)</div>
             ${gold&&o.sells.length?`<div style="font-size:11px;color:var(--coral);margin-top:1px">฿${fmt(o.sells[o.sells.length-1].goldPrice)}/บาท</div>`:''}
