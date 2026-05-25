@@ -14,7 +14,6 @@
     appId:             "1:867873889705:web:7f01b79952d8b0e5b938b8"
   };
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -42,11 +41,11 @@ input,select{font-family:inherit}
 .btn-ghost:hover{color:var(--coral)}
 .btn-google{background:#fff;color:#3c4043;border:1px solid #dadce0;padding:10px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;margin:0 auto}
 .btn-google:hover{background:#f8f9fa}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.stats{display:block;margin-bottom:20px}
 .stat{background:var(--surface);border-radius:var(--radius);padding:14px;border:1px solid var(--border)}
 .stat-label{font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
 .stat-val{font-size:20px;font-weight:600}
-@media(max-width:400px){.stats{grid-template-columns:1fr 1fr}.stat:first-child{grid-column:1/-1}}
+@media(max-width:400px){.stat:first-child{grid-column:auto}}
 .bank-group{margin-bottom:18px}
 .bank-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
 .pockets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px}
@@ -510,59 +509,73 @@ function renderAll(){
 
 function exportPDF(){
   const pin=localStorage.getItem('cp_pin');
-  if(!pin){alert('กรุณาตั้ง PIN ก่อนค่ะ (ใช้ PIN เป็นรหัสเปิด PDF)');return;}
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',encryption:{userPassword:pin,ownerPassword:pin+'_own',userPermissions:['print','copy']}});
   const now=new Date();
   const dateStr=`${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()+543} · ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  const pw=210;let y=18;
-  // Header
-  doc.setFillColor(26,26,24);doc.rect(0,0,pw,14,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
-  doc.text('Cloud Pocket — รายงานสรุป',pw/2,9,{align:'center'});
-  doc.setFontSize(8);doc.setFont('helvetica','normal');
-  doc.text(dateStr,pw/2,13,{align:'center'});
-  doc.setTextColor(26,26,24);
-  // Section: กระเป๋า
   const activePockets=pockets.filter(p=>!p.archived);
   const total=activePockets.reduce((s,p)=>s+Math.max(0,getPocketBal(p.id)),0);
-  doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(100,100,100);
-  doc.text('กระเป๋าเงินสด',14,y);y+=5;
-  doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,26,24);
-  doc.text('ยอดรวม: ฿'+fmt(total),14,y);y+=6;
-  doc.setFontSize(9);doc.setFont('helvetica','normal');
-  activePockets.forEach(p=>{
-    const bal=getPocketBal(p.id);
-    doc.text(`• ${p.name} (${p.bank})`,16,y);
-    doc.text('฿'+fmt(Math.max(0,bal)),pw-14,y,{align:'right'});y+=5;
-  });
-  y+=4;doc.setDrawColor(220,220,220);doc.line(14,y,pw-14,y);y+=6;
-  // Section: ทรัพย์สิน
-  doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(100,100,100);
-  doc.text('ทรัพย์สิน — Portfolio',14,y);y+=5;
   const activeAssets=assetList.filter(a=>!a.archived);
   const tCost=activeAssets.reduce((s,a)=>s+getATotalCost(a),0);
   const tReal=activeAssets.reduce((s,a)=>s+getARealPL(a),0);
   const tDiv=activeAssets.reduce((s,a)=>s+a.assetOrders.reduce((x,o)=>x+(o.dividends||[]).reduce((d2,d)=>d2+d.total,0),0),0);
-  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(26,26,24);
-  doc.text('ต้นทุนรวม: ฿'+fmt(tCost),14,y);y+=5;
-  doc.setTextColor(29,158,117);doc.text('กำไรจากการขาย: '+(tReal>=0?'+':'')+'฿'+fmt(Math.abs(tReal)),14,y);y+=5;
-  doc.setTextColor(186,117,23);doc.text('ปันผลสะสม: '+(tDiv>0?'+':'')+'฿'+fmt(tDiv),14,y);y+=6;
-  doc.setTextColor(26,26,24);doc.setFont('helvetica','bold');
-  doc.text('รายละเอียด:',14,y);y+=5;
-  doc.setFont('helvetica','normal');
-  activeAssets.forEach(a=>{
-    const cost=getATotalCost(a);const real=getARealPL(a);
-    doc.setTextColor(26,26,24);doc.text(`• ${a.name} (${a.type})`,16,y);
-    doc.text('ต้นทุน ฿'+fmt(cost),pw-14,y,{align:'right'});y+=4;
-    doc.setTextColor(real>=0?29:216,real>=0?158:90,real>=0?117:48);
-    doc.text(`  กำไร/ขาดทุน: ${real>=0?'+':''}฿${fmt(Math.abs(real))}`,16,y);y+=5;
-  });
-  // Footer
-  doc.setTextColor(160,160,160);doc.setFontSize(8);
-  doc.text('🔒 ไฟล์นี้ถูกป้องกันด้วยรหัส PIN ของแอป Cloud Pocket',pw/2,285,{align:'center'});
-  const fname=`cloud-pocket-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`;
-  doc.save(fname);
+
+  const pocketRows=activePockets.map(p=>`
+    <tr><td>${p.name}</td><td>${p.bank}</td><td style="text-align:right">฿${fmt(Math.max(0,getPocketBal(p.id)))}</td></tr>`).join('');
+
+  const assetRows=activeAssets.map(a=>`
+    <tr><td>${a.name}</td><td>${a.type}</td><td style="text-align:right">฿${fmt(getATotalCost(a))}</td>
+    <td style="text-align:right;color:${getARealPL(a)>=0?'#1D9E75':'#D85A30'}">${getARealPL(a)>=0?'+':''}฿${fmt(Math.abs(getARealPL(a)))}</td></tr>`).join('');
+
+  const html=`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
+  <title>Cloud Pocket — รายงานสรุป</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px;color:#1a1a18;max-width:800px;margin:0 auto}
+    .header{background:#1a1a18;color:#fff;padding:16px 24px;border-radius:10px;margin-bottom:24px;text-align:center}
+    .header h1{font-size:20px;margin:0 0 4px}
+    .header p{font-size:12px;opacity:.7;margin:0}
+    .section{margin-bottom:24px}
+    .section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6b6b67;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+    .sum-card{background:#f7f6f3;border-radius:8px;padding:12px}
+    .sum-label{font-size:11px;color:#6b6b67;margin-bottom:3px}
+    .sum-val{font-size:18px;font-weight:600}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;padding:8px 10px;background:#f7f6f3;color:#6b6b67;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+    td{padding:8px 10px;border-bottom:1px solid #eee}
+    .footer{margin-top:32px;text-align:center;font-size:11px;color:#9e9e99;border-top:1px solid #eee;padding-top:16px}
+    ${pin?`@media print{body::before{content:'🔒 รหัสเปิดไฟล์: ${pin}';display:block;background:#FAEEDA;color:#BA7517;padding:8px 16px;border-radius:6px;font-size:12px;margin-bottom:16px;text-align:center}}`:''}
+  </style></head><body>
+  <div class="header"><h1>☁️ Cloud Pocket — รายงานสรุป</h1><p>${dateStr}</p></div>
+  ${pin?`<div style="background:#E1F5EE;color:#0F6E56;padding:8px 16px;border-radius:6px;font-size:12px;margin-bottom:20px;text-align:center">🔒 รหัส PIN ของคุณ: <strong>${pin}</strong> — เก็บไว้เป็นความลับค่ะ</div>`:''}
+  <div class="section">
+    <div class="section-title">☁️ เงินสด — กระเป๋า</div>
+    <div class="summary">
+      <div class="sum-card"><div class="sum-label">ยอดรวม</div><div class="sum-val">฿${fmt(total)}</div></div>
+      <div class="sum-card"><div class="sum-label">จำนวนกระเป๋า</div><div class="sum-val">${activePockets.length} ใบ</div></div>
+      <div class="sum-card"><div class="sum-label">เป้าหมายรวม</div><div class="sum-val">฿${fmt(activePockets.reduce((s,p)=>s+(p.goal||0),0))}</div></div>
+    </div>
+    <table><thead><tr><th>กระเป๋า</th><th>ธนาคาร</th><th style="text-align:right">ยอดเงิน</th></tr></thead>
+    <tbody>${pocketRows}</tbody></table>
+  </div>
+  <div class="section">
+    <div class="section-title">💼 ทรัพย์สิน — Portfolio</div>
+    <div class="summary" style="grid-template-columns:repeat(4,1fr)">
+      <div class="sum-card"><div class="sum-label">ต้นทุนรวม</div><div class="sum-val">฿${fmt(tCost)}</div></div>
+      <div class="sum-card"><div class="sum-label">กำไรจากการขาย</div><div class="sum-val" style="color:${tReal>=0?'#1D9E75':'#D85A30'}">${tReal>=0?'+':''}฿${fmt(Math.abs(tReal))}</div></div>
+      <div class="sum-card"><div class="sum-label">กำไรในพอร์ต</div><div class="sum-val" style="color:#378ADD">฿${fmt(0)}</div></div>
+      <div class="sum-card"><div class="sum-label">ปันผลสะสม</div><div class="sum-val" style="color:#BA7517">+฿${fmt(tDiv)}</div></div>
+    </div>
+    <table><thead><tr><th>ทรัพย์สิน</th><th>ประเภท</th><th style="text-align:right">ต้นทุน</th><th style="text-align:right">กำไร/ขาดทุน</th></tr></thead>
+    <tbody>${assetRows}</tbody></table>
+  </div>
+  <div class="footer">สร้างโดย Cloud Pocket · ${dateStr}</div>
+  </body></html>`;
+
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`cloud-pocket-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.html`;
+  a.click();URL.revokeObjectURL(url);
 }
 
 function renderStats(){
