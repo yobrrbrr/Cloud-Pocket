@@ -477,6 +477,7 @@ function showApp(user){
     try{renderStats();}catch(e){}
     if(curSec==='assets')renderAssets();
     if(curSec==='yearly')renderYearly();
+    if(curSec==='chart')renderChart();
   },()=>{
     db.collection('users').doc(uid).collection('assetList').onSnapshot(snap=>{
       assetList=snap.docs.map(d=>({id:d.id,...d.data(),assetOrders:d.data().assetOrders||[]}));
@@ -819,6 +820,75 @@ function renderChart(){
     data.forEach(d=>{const pct=Math.round(d.bal/total*100);html+=`<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name} ${pct}%</div>`;});
     html+=`</div>`;
   }
+
+  // ── Asset overview ──
+  const activeAssets=assetList.filter(a=>!a.archived);
+  if(activeAssets.length){
+    const byType={};
+    activeAssets.forEach(a=>{if(!byType[a.type])byType[a.type]=[];byType[a.type].push(a);});
+    const totalAssetCost=activeAssets.reduce((s,a)=>s+getATotalCost(a),0);
+
+    html+=`<div style="height:1px;background:var(--border);margin:20px 0 14px"></div>
+    <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">แยกตามประเภทสินทรัพย์</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px">`;
+
+    Object.keys(byType).forEach(type=>{
+      const tc=ASSET_TYPE_COLORS[type]||'#888780';
+      const typeAssets=byType[type];
+      const typeTotal=typeAssets.reduce((s,a)=>s+getATotalCost(a),0);
+      const typeReal=typeAssets.reduce((s,a)=>s+getARealPL(a),0);
+      const typeInit=type.charAt(0);
+      let aRows=typeAssets.map(a=>{
+        const cost=getATotalCost(a);
+        const pct=typeTotal>0?Math.round(cost/typeTotal*100):0;
+        return `<div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <div style="width:7px;height:7px;border-radius:50%;background:${a.color};flex-shrink:0"></div>
+            <div style="font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
+            <div style="font-size:12px;color:var(--muted);flex-shrink:0">฿${fmt(cost)}</div>
+            <div style="font-size:11px;font-weight:500;color:${a.color};width:36px;text-align:right;flex-shrink:0">${pct}%</div>
+          </div>
+          <div style="height:3px;border-radius:2px;background:var(--border);overflow:hidden;margin-bottom:6px">
+            <div style="height:100%;border-radius:2px;width:${pct}%;background:${a.color}"></div>
+          </div>
+        </div>`;
+      }).join('');
+      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:30px;height:30px;border-radius:var(--radius-sm);background:${tc}22;color:${tc};font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0">${typeInit}</div>
+          <div>
+            <div style="font-size:13px;font-weight:500;color:var(--text)">${type}</div>
+            <div style="font-size:12px;color:var(--muted)">฿${fmt(typeTotal)}</div>
+          </div>
+        </div>
+        <div style="height:0.5px;background:var(--border);margin-bottom:10px"></div>
+        ${aRows}
+        ${typeReal!==0?`<div style="font-size:11px;color:${typeReal>=0?'var(--teal)':'var(--coral)'};margin-top:4px">${typeReal>=0?'↑ กำไร':'↓ ขาดทุน'}: ${typeReal>=0?'+':''}฿${fmt(Math.abs(typeReal))}</div>`:''}
+      </div>`;
+    });
+    html+=`</div>`;
+
+    // Asset bar chart
+    const aData=activeAssets.map(a=>({name:a.name,val:getATotalCost(a),color:a.color})).sort((a,b)=>b.val-a.val);
+    const aMax=Math.max(...aData.map(d=>d.val),1);
+    html+=`<div style="height:1px;background:var(--border);margin:4px 0 14px"></div>
+    <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:14px">สัดส่วนต้นทุนแต่ละทรัพย์สิน</div>`;
+    aData.forEach(d=>{
+      const pct=totalAssetCost>0?Math.round(d.val/totalAssetCost*100):0;
+      const w=Math.round(d.val/aMax*100);
+      html+=`<div class="bar-row">
+        <div class="bar-name" title="${d.name}">${d.name}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${d.color}"></div></div>
+        <div class="bar-val">฿${fmt(d.val)} <span style="color:var(--hint);font-size:11px">(${pct}%)</span></div>
+      </div>`;
+    });
+    if(totalAssetCost>0){
+      html+=`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px">`;
+      aData.forEach(d=>{const pct=Math.round(d.val/totalAssetCost*100);html+=`<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)"><span style="width:8px;height:8px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name} ${pct}%</div>`;});
+      html+=`</div>`;
+    }
+  }
+
   section.innerHTML=html;
 }
 
