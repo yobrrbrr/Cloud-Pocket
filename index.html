@@ -501,7 +501,8 @@ function switchSec(name,btn){
 }
 
 function renderAll(){
-  renderStats();renderPockets();renderTx();
+  try{renderStats();}catch(e){console.warn('renderStats error:',e);}
+  renderPockets();renderTx();
   if(curSec==='chart')renderChart();
   if(curSec==='transfer')renderTransfer();
   if(curSec==='yearly')renderYearly();
@@ -545,7 +546,7 @@ function exportPDF(){
     ${pin?`@media print{body::before{content:'🔒 รหัสเปิดไฟล์: ${pin}';display:block;background:#FAEEDA;color:#BA7517;padding:8px 16px;border-radius:6px;font-size:12px;margin-bottom:16px;text-align:center}}`:''}
   </style></head><body>
   <div class="header"><h1>☁️ Cloud Pocket — รายงานสรุป</h1><p>${dateStr}</p></div>
-  ${pin?`<div style="background:#E1F5EE;color:#0F6E56;padding:8px 16px;border-radius:6px;font-size:12px;margin-bottom:20px;text-align:center">🔒 รหัส PIN ของคุณ: <strong>${pin}</strong> — เก็บไว้เป็นความลับค่ะ</div>`:''}
+  ${pin?`<div style="background:#E1F5EE;color:#0F6E56;padding:8px 16px;border-radius:6px;font-size:12px;margin-bottom:20px;text-align:center">🔒 ไฟล์นี้ส่งออกจาก Cloud Pocket</div>`:''}
   <div class="section">
     <div class="section-title">☁️ เงินสด — กระเป๋า</div>
     <div class="summary">
@@ -586,24 +587,28 @@ function renderStats(){
   document.getElementById('stat-goal').textContent='฿'+fmt(goal);
   document.getElementById('stat-count').textContent=activePockets.length+' ใบ';
   // Asset stats
-  const activeAssets=assetList.filter(a=>!a.archived);
-  const totalCost=activeAssets.reduce((s,a)=>s+getATotalCost(a),0);
-  const totalRealized=activeAssets.reduce((s,a)=>s+getARealPL(a),0);
-  const totalUnrealized=activeAssets.reduce((s,a)=>{
-    if(isGold(a.type))return s+a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((x,o)=>{
-      const rem=getOrderRemaining(o,a);const tg=goldBuyGrams(o);const tc=o.amountPaid+(o.fee||0);
-      const rc=tg>0?tc*(rem/tg):0;return x+(a.price>0?a.price*rem/GOLD_GRAM-rc:0);},0);
-    const hold=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((x,o)=>x+getOrderRemaining(o,a),0);
-    const cb=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((x,o)=>x+getOrderRemaining(o,a)*o.price,0);
-    return s+hold*a.price-cb;
-  },0);
-  const totalDiv=activeAssets.reduce((s,a)=>s+a.assetOrders.reduce((x,o)=>x+(o.dividends||[]).reduce((y,d)=>y+d.total,0),0),0);
-  const re=document.getElementById('stat-asset-realized');
-  const ur=document.getElementById('stat-asset-unrealized');
-  document.getElementById('stat-asset-cost').textContent='฿'+fmt(totalCost);
-  if(re){re.textContent=(totalRealized>=0?'+':'')+'฿'+fmt(Math.abs(totalRealized));re.style.color=totalRealized>=0?'var(--teal)':'var(--coral)';}
-  if(ur){ur.textContent=(totalUnrealized>=0?'+':'')+'฿'+fmt(Math.abs(totalUnrealized));ur.style.color=totalUnrealized>=0?'#378ADD':'var(--coral)';}
-  document.getElementById('stat-asset-dividend').textContent=(totalDiv>0?'+':'')+'฿'+fmt(totalDiv);
+  try{
+    const activeAssets=assetList.filter(a=>!a.archived);
+    const totalCost=activeAssets.reduce((s,a)=>s+getATotalCost(a),0);
+    const totalRealized=activeAssets.reduce((s,a)=>s+getARealPL(a),0);
+    const totalUnrealized=activeAssets.reduce((s,a)=>{
+      if(isGold(a.type))return s+a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((x,o)=>{
+        const rem=getOrderRemaining(o,a);const tg=goldBuyGrams(o);const tc=o.amountPaid+(o.fee||0);
+        const rc=tg>0?tc*(rem/tg):0;return x+(a.price>0?a.price*rem/GOLD_GRAM-rc:0);},0);
+      const hold=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((x,o)=>x+getOrderRemaining(o,a),0);
+      const cb=a.assetOrders.filter(o=>getOrderStatus(o,a)!=='closed').reduce((x,o)=>x+getOrderRemaining(o,a)*(o.price||0),0);
+      return s+hold*(a.price||0)-cb;
+    },0);
+    const totalDiv=activeAssets.reduce((s,a)=>s+a.assetOrders.reduce((x,o)=>x+(o.dividends||[]).reduce((y,d)=>y+d.total,0),0),0);
+    const re=document.getElementById('stat-asset-realized');
+    const ur=document.getElementById('stat-asset-unrealized');
+    const sc=document.getElementById('stat-asset-cost');
+    const sd=document.getElementById('stat-asset-dividend');
+    if(sc)sc.textContent='฿'+fmt(totalCost);
+    if(re){re.textContent=(totalRealized>=0?'+':'')+'฿'+fmt(Math.abs(totalRealized));re.style.color=totalRealized>=0?'var(--teal)':'var(--coral)';}
+    if(ur){ur.textContent=(totalUnrealized>=0?'+':'')+'฿'+fmt(Math.abs(totalUnrealized));ur.style.color=totalUnrealized>=0?'#378ADD':'var(--coral)';}
+    if(sd)sd.textContent=(totalDiv>0?'+':'')+'฿'+fmt(totalDiv);
+  }catch(e){console.warn('asset stats error:',e);}
 }
 
 function renderPockets(){
