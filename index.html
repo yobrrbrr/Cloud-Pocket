@@ -635,7 +635,8 @@ function renderPockets(){
     </div>`;
   }
   Object.keys(byBank).forEach(bank=>{
-    html+=`<div class="bank-group"><div class="bank-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22V12M9 22V12M15 22V12M21 22V12M1 12l11-9 11 9M12 22v-4"/></svg>${bank}</div><div class="pockets-grid" id="grid-${bank.replace(/\s/g,'_')}">`;
+    const bankTotal=byBank[bank].reduce((s,p)=>s+Math.max(0,getPocketBal(p.id)),0);
+    html+=`<div class="bank-group"><div class="bank-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22V12M9 22V12M15 22V12M21 22V12M1 12l11-9 11 9M12 22v-4"/></svg>${bank}<span style="margin-left:auto;font-size:12px;font-weight:600;color:var(--text)">฿${fmt(bankTotal)}</span></div><div class="pockets-grid" id="grid-${bank.replace(/\s/g,'_')}">`;
     byBank[bank].forEach(p=>{
       const bal=getPocketBal(p.id);
       const pct=p.goal?Math.min(100,Math.round(Math.max(0,bal)/p.goal*100)):0;
